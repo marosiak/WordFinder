@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	searchEndpoint = "search"
-	songEndpoint   = "songs"
-	artistEndpoint = "artists"
-	emptyLyricsErr = errors.New("empty lyrics")
+	searchEndpoint   = "search"
+	songEndpoint     = "songs"
+	artistEndpoint   = "artists"
+	emptyLyricsErr   = errors.New("empty lyrics")
+	blockedSelectors = []string{"script", "#onetrust-consent-sdk"}
 )
 
 const maxLyricsRetries = 2
@@ -130,11 +131,12 @@ REQUEST:
 		return "", err
 	}
 
-	doc.Find("script").Each(func(i int, s *goquery.Selection) {
-		s.Remove()
-	})
-
-	doc.Find("#onetrust-consent-sdk").Remove()
+	// There is cookie popup and scripts which are hidding lyrics, this loop will remove it
+	for _, v := range blockedSelectors {
+		doc.Find(v).Each(func(i int, s *goquery.Selection) {
+			s.Remove()
+		})
+	}
 
 	var lyrics string
 	doc.Find(".lyrics").Each(func(i int, s *goquery.Selection) {

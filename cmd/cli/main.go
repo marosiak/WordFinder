@@ -84,7 +84,7 @@ func main() {
 
 	if isAlbum {
 		artistID := searchResults[0].PrimaryArtist.ID
-		_, _ = genius.FindSongsByArtistID(artistID)
+		_, _ = genius.FindSongsByArtistID(artistID) // Not implemented yet
 	}
 
 	lyrics, err := genius.GetLyricsFromPath(searchResults[0].LyricsPath)
