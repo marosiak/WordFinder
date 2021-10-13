@@ -83,15 +83,15 @@ func main() {
 	}
 
 	if isAlbum {
-		artistID := searchResults.Response.Hits[0].Result.PrimaryArtist.ID
+		artistID := searchResults[0].PrimaryArtist.ID
 		_, _ = genius.FindSongsByArtistID(artistID)
 	}
 
-	lyrics, err := genius.GetLyricsFromPath(searchResults.Response.Hits[0].Result.LyricsPath)
+	lyrics, err := genius.GetLyricsFromPath(searchResults[0].LyricsPath)
 	if err != nil {
 		logger.WithError(err).Fatal("geting lyrics error")
 	}
 
 	count := strings.Count(strings.ToLower(lyrics), strings.ToLower(keyword))
-	fmt.Printf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, searchResults.Response.Hits[0].Result.FullTitle)
+	fmt.Printf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, searchResults[0].FullTitle)
 }
