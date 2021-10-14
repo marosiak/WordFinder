@@ -20,12 +20,16 @@ var (
 	blockedSelectors = []string{"script", "#onetrust-consent-sdk"}
 )
 
-const maxLyricsRetries = 2
+const (
+	perPageLimit     = 50
+	maxLyricsRetries = 4
+)
 
 type Song struct {
-	ID        int
-	Path      string
-	FullTitle string `json:"full_title"`
+	ID            int
+	LyricsPath    string `json:"path"`
+	FullTitle     string `json:"full_title"`
+	PrimaryArtist Artist `json:"primary_artist"`
 }
 
 type Artist struct {
@@ -49,7 +53,7 @@ type GeniusProvider interface {
 	GetSong(id int) (Song, error)
 	GetLyrics(song Song) (string, error)
 	GetLyricsFromPath(lyricsPath string) (string, error)
-	FindSongsByArtistID(artistID int) (*Artist, error)
+	FindSongsByArtistID(artistID int) ([]Song, error)
 }
 
 type InternalGeniusProvider struct {
@@ -96,7 +100,7 @@ func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
 }
 
 func (s *InternalGeniusProvider) GetLyrics(song Song) (string, error) {
-	return s.GetLyricsFromPath(song.Path)
+	return s.GetLyricsFromPath(song.LyricsPath)
 }
 
 func (s *InternalGeniusProvider) GetLyricsFromPath(lyricsPath string) (string, error) {
@@ -198,8 +202,19 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	return results, err
 }
 
-func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) (*Artist, error) {
-	req, err := utils.CreatePathRequest(s.cfg, fmt.Sprintf("%s/%s/%d/%s", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint), "GET")
+func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]Song, error) {
+	songs := []Song{}
+	currentPage := 0
+
+REQUEST:
+	var url string
+	if currentPage == 0 {
+		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit)
+	} else {
+		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit, currentPage)
+	}
+
+	req, err := utils.CreatePathRequest(s.cfg, url, "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")
 		return nil, err
@@ -218,7 +233,31 @@ func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) (*Artist, err
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
+		return nil, err
 	}
-	println(string(bytes))
-	return nil, errors.New("not implemented yet")
+
+	type artistSongsResponse struct {
+		Response struct {
+			Songs    []Song `json:"songs"`
+			NextPage int    `json:"next_page"`
+		} `json:"response"`
+	}
+
+	var artistSongsResp artistSongsResponse
+	err = json.Unmarshal(bytes, &artistSongsResp)
+
+	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
+	for _, song := range artistSongsResp.Response.Songs {
+		if song.PrimaryArtist.ID == artistID {
+			songs = append(songs, song)
+		}
+	}
+
+	nextPage := artistSongsResp.Response.NextPage
+	if currentPage != nextPage {
+		currentPage = nextPage
+		goto REQUEST
+	}
+
+	return songs, err
 }
