@@ -96,64 +96,6 @@ func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
 	return songPayload.Response.Song, err
 }
 
-func (s *InternalGeniusProvider) GetLyrics(song Song) (string, error) {
-	return s.GetLyricsFromPath(song.LyricsPath)
-}
-
-func (s *InternalGeniusProvider) GetLyricsFromPath(lyricsPath string) (string, error) {
-	req, err := utils.CreatePathRequest(s.cfg, fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath), "GET")
-	if err != nil {
-		s.logger.WithError(err).Error("creating url")
-		return "", err
-	}
-
-	retries := 1
-
-REQUEST:
-	res, err := s.client.Do(&req)
-	if err != nil {
-		s.logger.WithError(err).Error("creating http client")
-		return "", err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		s.logger.Error(res.StatusCode)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		s.logger.WithError(err).WithFields(
-			log.Fields{
-				"status_code": res.StatusCode,
-			}).Error("cannot query document")
-
-		return "", err
-	}
-
-	// There is cookie popup and scripts which are hiding lyrics, this loop will remove it
-	for _, v := range blockedSelectors {
-		doc.Find(v).Each(func(i int, s *goquery.Selection) {
-			s.Remove()
-		})
-	}
-
-	var lyrics string
-	doc.Find(".lyrics").Each(func(i int, s *goquery.Selection) {
-		lyrics = s.Text()
-	})
-
-	if lyrics == "" {
-		if retries < maxLyricsRetries {
-			retries = retries + 1
-			s.logger.WithError(emptyLyricsErr)
-			goto REQUEST
-		}
-
-		return "", emptyLyricsErr
-	}
-	return lyrics, err
-}
 func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s?q=%s", searchEndpoint, query), "GET")
 	if err != nil {
@@ -250,4 +192,63 @@ REQUEST:
 	}
 
 	return songs, err
+}
+
+func (s *InternalGeniusProvider) GetLyrics(song Song) (string, error) {
+	return s.GetLyricsFromPath(song.LyricsPath)
+}
+
+func (s *InternalGeniusProvider) GetLyricsFromPath(lyricsPath string) (string, error) {
+	req, err := utils.CreatePathRequest(s.cfg, fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath), "GET")
+	if err != nil {
+		s.logger.WithError(err).Error("creating url")
+		return "", err
+	}
+
+	retries := 1
+
+REQUEST:
+	res, err := s.client.Do(&req)
+	if err != nil {
+		s.logger.WithError(err).Error("creating http client")
+		return "", err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		s.logger.Error(res.StatusCode)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		s.logger.WithError(err).WithFields(
+			log.Fields{
+				"status_code": res.StatusCode,
+			}).Error("cannot query document")
+
+		return "", err
+	}
+
+	// There is cookie popup and scripts which are hiding lyrics, this loop will remove it
+	for _, v := range blockedSelectors {
+		doc.Find(v).Each(func(i int, s *goquery.Selection) {
+			s.Remove()
+		})
+	}
+
+	var lyrics string
+	doc.Find(".lyrics").Each(func(i int, s *goquery.Selection) {
+		lyrics = s.Text()
+	})
+
+	if lyrics == "" {
+		if retries < maxLyricsRetries {
+			retries = retries + 1
+			s.logger.WithError(emptyLyricsErr)
+			goto REQUEST
+		}
+
+		return "", emptyLyricsErr
+	}
+	return lyrics, err
 }
