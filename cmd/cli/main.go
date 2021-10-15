@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/marosiak/WordFinder/utils"
 	"os"
 
 	"fmt"
@@ -8,9 +9,7 @@ import (
 	"github.com/marosiak/WordFinder/internal"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"net/http"
 	"strings"
-	"time"
 )
 
 func getCliApp() (map[string]string, error) {
@@ -66,16 +65,12 @@ func main() {
 	mainLogger.SetLevel(log.DebugLevel)
 	logger := log.NewEntry(mainLogger)
 
-	client := &http.Client{
-		Timeout: time.Second * 15,
-	}
-
 	cfg, err := config.NewConfig()
 	if err != nil {
 		logger.WithError(err).Error("config creating error")
 	}
 
-	genius := internal.NewGeniusProvider(client, &cfg, logger.WithField("component", "genius_provider"))
+	genius := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger.WithField("component", "genius_provider"))
 
 	searchResults, err := genius.Search(songName)
 	if err != nil {
@@ -84,18 +79,26 @@ func main() {
 
 	if isAlbum {
 		artistID := searchResults[0].PrimaryArtist.ID
+
 		songs, err := genius.FindSongsByArtistID(artistID) // Not implemented yet
 		if err != nil {
 			logger.WithError(err).Fatal("geting songs")
 		}
-		for _, song := range songs {
-			lyrics, err := genius.GetLyricsFromPath(song.LyricsPath)
-			if err != nil {
-				logger.WithError(err).Fatal("geting lyrics error")
-			}
 
-			count := strings.Count(strings.ToLower(lyrics), strings.ToLower(keyword))
-			fmt.Printf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, song.FullTitle)
+		for _, song := range songs {
+			song := song
+			c := make(chan string)
+			go func(c chan string) {
+				lyrics, err := genius.GetLyricsFromPath(song.LyricsPath)
+				if err != nil {
+					logger.WithError(err).Fatal("geting lyrics error")
+				}
+				count := strings.Count(strings.ToLower(lyrics), strings.ToLower(keyword))
+				c <- fmt.Sprintf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, song.FullTitle)
+			}(c)
+
+			a := <-c
+			println(a)
 		}
 
 		return

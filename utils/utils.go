@@ -3,19 +3,24 @@ package utils
 import (
 	"fmt"
 	"github.com/marosiak/WordFinder/config"
+	"math/rand"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 func getHeaders(cfg *config.Config) map[string][]string {
+	rand.Seed(time.Now().UnixNano())
+	randomUserAgent := cfg.UserAgents[rand.Intn(len(cfg.UserAgents)-0)]
+
 	return map[string][]string{
 		"Content-Type":    {"application/json"},
 		"x-rapidapi-host": {cfg.GeniusApiHost},
 		"x-rapidapi-key":  {cfg.GeniusApiKey},
-		"User-Agent":      {"Mozilla/5.0 (X11; U; Linux is686; pl-PL; rv:1.7.10) Gecko/20050717 Firefox/1.0.6"},
+		"User-Agent":      {randomUserAgent},
 		"Accept":          {"*/*"},
 		"Connection":      {"keep-alive"},
-		"Set-Cookie":      {"CONSTANT=YES+shp.gws-20210701-0-RC1.pl+FX+631;AMP-CONSENT=amp-8QWzAroGD8LPo0rQpgV1-w"},
+		"Cache-Control":   {"no-cache"},
 	}
 }
 
@@ -46,4 +51,16 @@ func CreatePathRequest(cfg *config.Config, path string, method string) (http.Req
 		Header: getHeaders(cfg),
 	}
 	return req, nil
+}
+
+func CreateHttpClient(cfg *config.Config) *http.Client {
+	return &http.Client{
+		Timeout: cfg.RequestTimeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        10,
+			MaxIdleConnsPerHost: 10,
+			MaxConnsPerHost:     10,
+			IdleConnTimeout:     cfg.RequestTimeout,
+		},
+	}
 }

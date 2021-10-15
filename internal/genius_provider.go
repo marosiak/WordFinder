@@ -22,7 +22,7 @@ var (
 
 const (
 	perPageLimit     = 50
-	maxLyricsRetries = 4
+	maxLyricsRetries = 3
 )
 
 type Song struct {
@@ -78,10 +78,7 @@ func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
 		s.logger.WithError(err).Error("creating http client")
 		return Song{}, err
 	}
-
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
+	defer res.Body.Close()
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -118,12 +115,11 @@ REQUEST:
 		s.logger.WithError(err).Error("creating http client")
 		return "", err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
 		s.logger.Error(res.StatusCode)
 	}
-
-	defer res.Body.Close()
 
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
@@ -135,7 +131,7 @@ REQUEST:
 		return "", err
 	}
 
-	// There is cookie popup and scripts which are hidding lyrics, this loop will remove it
+	// There is cookie popup and scripts which are hiding lyrics, this loop will remove it
 	for _, v := range blockedSelectors {
 		doc.Find(v).Each(func(i int, s *goquery.Selection) {
 			s.Remove()
@@ -170,10 +166,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 		log.WithError(err).Error("creating http client")
 		return []SearchResult{}, err
 	}
-
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
+	defer res.Body.Close()
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -203,7 +196,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 }
 
 func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]Song, error) {
-	songs := []Song{}
+	var songs []Song
 	currentPage := 0
 
 REQUEST:
@@ -225,10 +218,7 @@ REQUEST:
 		log.WithError(err).Error("creating http client")
 		return nil, err
 	}
-
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(res.Body)
+	defer res.Body.Close()
 
 	bytes, err := io.ReadAll(res.Body)
 	if err != nil {
