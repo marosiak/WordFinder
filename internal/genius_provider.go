@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,7 +23,7 @@ var (
 
 const (
 	perPageLimit     = 50
-	maxLyricsRetries = 3
+	maxLyricsRetries = 2
 )
 
 type Song struct {
@@ -219,7 +220,9 @@ REQUEST:
 		s.logger.Error(res.StatusCode)
 	}
 
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	buf, err := io.ReadAll(res.Body)
+
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(buf))
 	if err != nil {
 		s.logger.WithError(err).WithFields(
 			log.Fields{
@@ -237,14 +240,20 @@ REQUEST:
 	}
 
 	var lyrics string
-	doc.Find(".lyrics").Each(func(i int, s *goquery.Selection) {
-		lyrics = s.Text()
-	})
+
+	// This list of selectors is needed in order to work around AB Tests, in future there could be pattern scanning
+	whitelistedSelectors := []string{"#lyrics-root-pin-spacer", ".lyrics"}
+	for _, selector := range whitelistedSelectors {
+		doc.Find(selector).Each(func(i int, s *goquery.Selection) {
+			lyrics = s.Text()
+		})
+	}
 
 	if lyrics == "" {
+		s.logger.WithError(emptyLyricsErr)
+
 		if retries < maxLyricsRetries {
 			retries = retries + 1
-			s.logger.WithError(emptyLyricsErr)
 			goto REQUEST
 		}
 

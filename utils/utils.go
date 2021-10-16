@@ -40,7 +40,11 @@ func CreateEndpointRequest(cfg *config.Config, endpoint string, method string) (
 
 func CreatePathRequest(cfg *config.Config, path string, method string) (http.Request, error) {
 	reqUrl, err := url.Parse(fmt.Sprintf("https://%s", path))
-	println(reqUrl.String())
+
+	if cfg.Debug {
+		println(reqUrl.String())
+	}
+
 	if err != nil {
 		return http.Request{}, err
 	}
@@ -57,9 +61,9 @@ func CreateHttpClient(cfg *config.Config) *http.Client {
 	return &http.Client{
 		Timeout: cfg.RequestTimeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        10,
-			MaxIdleConnsPerHost: 10,
-			MaxConnsPerHost:     10,
+			MaxIdleConns:        50,
+			MaxIdleConnsPerHost: 50,
+			MaxConnsPerHost:     50,
 			IdleConnTimeout:     cfg.RequestTimeout,
 		},
 	}

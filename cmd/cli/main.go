@@ -33,8 +33,8 @@ func getCliApp() (map[string]string, error) {
 				Required: true,
 			},
 			&cli.BoolFlag{
-				Name:     "is-album",
-				Usage:    "--is-album - will iterate thru album from which the song has came",
+				Name:     "scan-artist",
+				Usage:    "--scan-artist - will iterate thru author of song provided with --song",
 				Aliases:  []string{"ia"},
 				Required: false,
 			},
@@ -42,7 +42,7 @@ func getCliApp() (map[string]string, error) {
 		Action: func(c *cli.Context) error {
 			inputs["song"] = c.String("song")
 			inputs["keyword"] = c.String("keyword")
-			inputs["is-album"] = c.String("is-album")
+			inputs["scan-artist"] = c.String("scan-artist")
 			return nil
 		},
 	}
@@ -55,7 +55,7 @@ func main() {
 	inputs, err := getCliApp()
 	songName := inputs["song"]
 	keyword := inputs["keyword"]
-	_, isAlbum := inputs["is-album"]
+	_, scanArtist := inputs["scan-artist"]
 
 	if err != nil {
 		log.Fatal(err)
@@ -77,10 +77,10 @@ func main() {
 		logger.WithError(err).Fatal("search error")
 	}
 
-	if isAlbum {
+	if scanArtist {
 		artistID := searchResults[0].PrimaryArtist.ID
 
-		songs, err := genius.FindSongsByArtistID(artistID) // Not implemented yet
+		songs, err := genius.FindSongsByArtistID(artistID)
 		if err != nil {
 			logger.WithError(err).Fatal("geting songs")
 		}
