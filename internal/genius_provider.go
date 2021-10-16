@@ -28,10 +28,19 @@ const (
 
 type Song struct {
 	ID            int
-	LyricsPath    string `json:"path"`
-	FullTitle     string `json:"full_title"`
-	PrimaryArtist Artist `json:"primary_artist"`
+	LyricsPath    string      `json:"path"`
+	FullTitle     string      `json:"full_title"`
+	PrimaryArtist Artist      `json:"primary_artist"`
+	LyricsState   LyricsState `json:"lyrics_state"`
 }
+
+type LyricsState string
+
+const (
+	LyricsComplete   LyricsState = "complete"
+	LyricsIncomplete             = "incomplete"
+	LyricsUnreleased             = "unreleased"
+)
 
 type Artist struct {
 	ID      int    `json:"id"`
@@ -163,7 +172,7 @@ REQUEST:
 	}
 	defer res.Body.Close()
 
-	bytes, err := io.ReadAll(res.Body)
+	by, err := io.ReadAll(res.Body)
 	if err != nil {
 		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
 		return nil, err
@@ -177,7 +186,7 @@ REQUEST:
 	}
 
 	var artistSongsResp artistSongsResponse
-	err = json.Unmarshal(bytes, &artistSongsResp)
+	err = json.Unmarshal(by, &artistSongsResp)
 
 	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
 	for _, song := range artistSongsResp.Response.Songs {
@@ -217,7 +226,7 @@ REQUEST:
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		s.logger.Error(res.StatusCode)
+		s.logger.WithField("status_code", res.StatusCode).Error("wrong status code")
 	}
 
 	buf, err := io.ReadAll(res.Body)

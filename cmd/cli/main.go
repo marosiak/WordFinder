@@ -87,6 +87,11 @@ func main() {
 
 		for _, song := range songs {
 			song := song
+
+			if song.LyricsState != internal.LyricsComplete {
+				continue
+			}
+
 			c := make(chan string)
 			go func(c chan string) {
 				lyrics, err := genius.GetLyricsFromPath(song.LyricsPath)
