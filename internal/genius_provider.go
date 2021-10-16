@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 var (
@@ -107,7 +108,7 @@ func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
 }
 
 func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
-	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s?q=%s", searchEndpoint, query), "GET")
+	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s?q=%s", searchEndpoint, url.QueryEscape(query)), "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")
 		return []SearchResult{}, err
