@@ -27,12 +27,12 @@ const (
 	maxLyricsRetries = 2
 )
 
-type Song struct {
+type GeniusSong struct {
 	ID            int
-	LyricsPath    string      `json:"path"`
-	FullTitle     string      `json:"full_title"`
-	PrimaryArtist Artist      `json:"primary_artist"`
-	LyricsState   LyricsState `json:"lyrics_state"`
+	LyricsPath    string       `json:"path"`
+	FullTitle     string       `json:"full_title"`
+	PrimaryArtist GeniusArtist `json:"primary_artist"`
+	LyricsState   LyricsState  `json:"lyrics_state"`
 }
 
 type LyricsState string
@@ -43,28 +43,30 @@ const (
 	LyricsUnreleased             = "unreleased"
 )
 
-type Artist struct {
+type GeniusArtist struct {
 	ID      int    `json:"id"`
 	ApiPath string `json:"api_path"`
 	Name    string `json:"name"`
 }
 
 type SearchResult struct {
-	ID            int
-	ApiPath       string `json:"api_path"`
-	FullTitle     string `json:"full_title"`
-	LyricsPath    string `json:"path"`
-	PrimaryArtist Artist `json:"primary_artist"`
+	ID             int
+	ApiPath        string       `json:"api_path"`
+	FullTitle      string       `json:"full_title"`
+	LyricsEndpoint string       `json:"path"`
+	PrimaryArtist  GeniusArtist `json:"primary_artist"`
 }
 
 var _ GeniusProvider = &InternalGeniusProvider{}
 
 type GeniusProvider interface {
 	Search(query string) ([]SearchResult, error)
-	GetSong(id int) (Song, error)
-	GetLyrics(song Song) (string, error)
+	GetSongByID(id int) (GeniusSong, error)
+	GetLyrics(song GeniusSong) (string, error)
 	GetLyricsFromPath(lyricsPath string) (string, error)
-	FindSongsByArtistID(artistID int) ([]Song, error)
+	//FindSongsByArtistID(artistID int) ([]GeniusSong, error)
+	FindSongsByArtistID(artistID int) ([]GeniusSong, error)
+	FindArtist(artistName string) (GeniusArtist, error)
 }
 
 type InternalGeniusProvider struct {
@@ -77,17 +79,20 @@ func NewGeniusProvider(client *http.Client, cfg *config.Config, logger *log.Entr
 	return &InternalGeniusProvider{client: client, cfg: cfg, logger: logger}
 }
 
-func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
+func (s *InternalGeniusProvider) FindArtist(artistName string) (GeniusArtist, error) {
+	return GeniusArtist{}, nil
+}
+func (s *InternalGeniusProvider) GetSongByID(id int) (GeniusSong, error) {
 	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s/%d", songEndpoint, id), "GET")
 	if err != nil {
 		s.logger.WithError(err).Error("creating url")
-		return Song{}, err
+		return GeniusSong{}, err
 	}
 
 	res, err := s.client.Do(&req)
 	if err != nil {
 		s.logger.WithError(err).Error("creating http client")
-		return Song{}, err
+		return GeniusSong{}, err
 	}
 	defer res.Body.Close()
 
@@ -98,7 +103,7 @@ func (s *InternalGeniusProvider) GetSong(id int) (Song, error) {
 
 	type songResponse struct {
 		Response struct {
-			Song Song `json:"song"`
+			Song GeniusSong `json:"song"`
 		}
 	}
 
@@ -148,9 +153,73 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	return results, err
 }
 
-func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]Song, error) {
-	var songs []Song
+//func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
+//	var songs []GeniusSong
+//	currentPage := 0
+//
+//	type artistSongsResponse struct {
+//		Response struct {
+//			Songs    []GeniusSong `json:"songs"`
+//			NextPage int          `json:"next_page"`
+//		} `json:"response"`
+//	}
+//
+//REQUEST:
+//	var url string
+//	if currentPage == 0 {
+//		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit)
+//	} else {
+//		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit, currentPage)
+//	}
+//	println(url)
+//	req, err := utils.CreatePathRequest(s.cfg, url, "GET")
+//	if err != nil {
+//		log.WithError(err).Error("creating url")
+//		return nil, err
+//	}
+//
+//	res, err := s.client.Do(&req)
+//	if err != nil {
+//		log.WithError(err).Error("creating http client")
+//		return nil, err
+//	}
+//	defer res.Body.Close()
+//
+//	by, err := io.ReadAll(res.Body)
+//	if err != nil {
+//		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
+//		return nil, err
+//	}
+//
+//	var artistSongsResp artistSongsResponse
+//	err = json.Unmarshal(by, &artistSongsResp)
+//
+//	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
+//	for _, song := range artistSongsResp.Response.Songs {
+//		if song.PrimaryArtist.ID == artistID {
+//			songs = append(songs, song)
+//		}
+//	}
+//
+//	nextPage := artistSongsResp.Response.NextPage
+//	if currentPage != nextPage {
+//		currentPage = nextPage
+//		goto REQUEST
+//	}
+//
+//	return songs, err
+//}
+
+func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
+	var songs []GeniusSong
 	currentPage := 0
+
+	type artistSongsResponse struct {
+		Response struct {
+			Songs    []GeniusSong `json:"songs"`
+			NextPage int          `json:"next_page"`
+		} `json:"response"`
+	}
 
 REQUEST:
 	var url string
@@ -159,7 +228,7 @@ REQUEST:
 	} else {
 		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit, currentPage)
 	}
-
+	println(url)
 	req, err := utils.CreatePathRequest(s.cfg, url, "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")
@@ -177,13 +246,6 @@ REQUEST:
 	if err != nil {
 		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
 		return nil, err
-	}
-
-	type artistSongsResponse struct {
-		Response struct {
-			Songs    []Song `json:"songs"`
-			NextPage int    `json:"next_page"`
-		} `json:"response"`
 	}
 
 	var artistSongsResp artistSongsResponse
@@ -205,19 +267,21 @@ REQUEST:
 	return songs, err
 }
 
-func (s *InternalGeniusProvider) GetLyrics(song Song) (string, error) {
+func (s *InternalGeniusProvider) GetLyrics(song GeniusSong) (string, error) {
 	return s.GetLyricsFromPath(song.LyricsPath)
 }
 
 func (s *InternalGeniusProvider) GetLyricsFromPath(lyricsPath string) (string, error) {
-	req, err := utils.CreatePathRequest(s.cfg, fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath), "GET")
+	urlStr := fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath)
+	req, err := utils.CreatePathRequest(s.cfg, urlStr, "GET")
 	if err != nil {
 		s.logger.WithError(err).Error("creating url")
 		return "", err
 	}
 
-	retries := 1
+	s.logger.Info(urlStr)
 
+	retries := 1
 REQUEST:
 	res, err := s.client.Do(&req)
 	if err != nil {

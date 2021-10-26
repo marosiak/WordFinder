@@ -30,6 +30,10 @@ func CreateEndpointRequest(cfg *config.Config, endpoint string, method string) (
 		return http.Request{}, err
 	}
 
+	if cfg.Debug {
+		println(reqUrl.String())
+	}
+
 	req := http.Request{
 		Method: method,
 		URL:    reqUrl,

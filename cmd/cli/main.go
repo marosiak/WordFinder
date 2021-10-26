@@ -4,12 +4,10 @@ import (
 	"github.com/marosiak/WordFinder/utils"
 	"os"
 
-	"fmt"
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	"strings"
 )
 
 func getCliApp() (map[string]string, error) {
@@ -21,9 +19,9 @@ func getCliApp() (map[string]string, error) {
 
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "song",
-				Usage:    "--song=\"the_name\"",
-				Aliases:  []string{"s"},
+				Name:     "query",
+				Usage:    "--query=\"the_name\"",
+				Aliases:  []string{"q"},
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -40,7 +38,7 @@ func getCliApp() (map[string]string, error) {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			inputs["song"] = c.String("song")
+			inputs["query"] = c.String("query")
 			inputs["keyword"] = c.String("keyword")
 			inputs["scan-artist"] = c.String("scan-artist")
 			return nil
@@ -53,8 +51,8 @@ func getCliApp() (map[string]string, error) {
 
 func main() {
 	inputs, err := getCliApp()
-	songName := inputs["song"]
-	keyword := inputs["keyword"]
+	songName := inputs["query"]
+	//keyword := inputs["keyword"]
 	_, scanArtist := inputs["scan-artist"]
 
 	if err != nil {
@@ -71,49 +69,22 @@ func main() {
 	}
 
 	genius := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger.WithField("component", "genius_provider"))
-
-	searchResults, err := genius.Search(songName)
-	if err != nil {
-		logger.WithError(err).Fatal("search error")
-	}
+	lyricsService := internal.NewLyricsService(&cfg, genius, logger)
 
 	if scanArtist {
-		artistID := searchResults[0].PrimaryArtist.ID
-
-		songs, err := genius.FindSongsByArtistID(artistID)
+		songInfos, err := lyricsService.GetAllSongsInfoByArtist(songName)
 		if err != nil {
-			logger.WithError(err).Fatal("geting songs")
+			logger.WithError(err).Error("cannot fetch all songs infos by artist")
+		}
+		for _, v := range songInfos {
+			println(v.Title)
 		}
 
-		for _, song := range songs {
-			song := song
-
-			if song.LyricsState != internal.LyricsComplete {
-				continue
-			}
-
-			c := make(chan string)
-			go func(c chan string) {
-				lyrics, err := genius.GetLyricsFromPath(song.LyricsPath)
-				if err != nil {
-					logger.WithError(err).Fatal("geting lyrics error")
-				}
-				count := strings.Count(strings.ToLower(lyrics), strings.ToLower(keyword))
-				c <- fmt.Sprintf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, song.FullTitle)
-			}(c)
-
-			a := <-c
-			println(a)
+		song, err := lyricsService.GetSongFromInfo(songInfos[0])
+		if err != nil {
+			return
 		}
-
-		return
+		println(song.Lyrics)
 	}
 
-	lyrics, err := genius.GetLyricsFromPath(searchResults[0].LyricsPath)
-	if err != nil {
-		logger.WithError(err).Fatal("geting lyrics error")
-	}
-
-	count := strings.Count(strings.ToLower(lyrics), strings.ToLower(keyword))
-	fmt.Printf("\"%s\" occurred %d times in \"%s\"\n", keyword, count, searchResults[0].FullTitle)
 }
