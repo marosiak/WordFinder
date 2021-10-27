@@ -35,6 +35,17 @@ type GeniusSong struct {
 	LyricsState   LyricsState  `json:"lyrics_state"`
 }
 
+type geniusSongs []GeniusSong
+
+func (s geniusSongs) ExistsByID(id int) bool {
+	for _, song := range s {
+		if song.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 type LyricsState string
 
 const (
@@ -83,7 +94,7 @@ func (s *InternalGeniusProvider) FindArtist(artistName string) (GeniusArtist, er
 	return GeniusArtist{}, nil
 }
 func (s *InternalGeniusProvider) GetSongByID(id int) (GeniusSong, error) {
-	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s/%d", songEndpoint, id), "GET")
+	req, err := utils.CreateEndpointRequest(s.cfg, s.cfg.GeniusRapidApiHost, fmt.Sprintf("%s/%d", songEndpoint, id), "GET")
 	if err != nil {
 		s.logger.WithError(err).Error("creating url")
 		return GeniusSong{}, err
@@ -113,7 +124,7 @@ func (s *InternalGeniusProvider) GetSongByID(id int) (GeniusSong, error) {
 }
 
 func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
-	req, err := utils.CreateEndpointRequest(s.cfg, fmt.Sprintf("%s?q=%s", searchEndpoint, url.QueryEscape(query)), "GET")
+	req, err := utils.CreateEndpointRequest(s.cfg, s.cfg.GeniusRapidApiHost, fmt.Sprintf("%s?q=%s", searchEndpoint, url.QueryEscape(query)), "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")
 		return []SearchResult{}, err
@@ -211,8 +222,8 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 //}
 
 func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
-	var songs []GeniusSong
-	currentPage := 0
+	var songs geniusSongs
+	currentPage := 1
 
 	type artistSongsResponse struct {
 		Response struct {
@@ -223,11 +234,15 @@ func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong
 
 REQUEST:
 	var url string
-	if currentPage == 0 {
+
+	if currentPage == 1 {
 		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit)
+	} else if currentPage >= 3 {
+		url = fmt.Sprintf("%s/%s/%d/%s?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, currentPage)
 	} else {
 		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit, currentPage)
 	}
+
 	println(url)
 	req, err := utils.CreatePathRequest(s.cfg, url, "GET")
 	if err != nil {
@@ -254,12 +269,20 @@ REQUEST:
 	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
 	for _, song := range artistSongsResp.Response.Songs {
 		if song.PrimaryArtist.ID == artistID {
-			songs = append(songs, song)
+			if songs.ExistsByID(song.ID) == false {
+				songs = append(songs, song)
+			}
 		}
 	}
 
 	nextPage := artistSongsResp.Response.NextPage
-	if currentPage != nextPage {
+
+	// Getting page=2 returned next_page=2 - at this point, I don't trust Genius, so I'll try to request 3rd page, but without limit
+	// ^ May sound ridiculously, but that is true
+	if currentPage == nextPage {
+		currentPage = currentPage + 1
+		goto REQUEST
+	} else if nextPage != 0 {
 		currentPage = nextPage
 		goto REQUEST
 	}

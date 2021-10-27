@@ -15,8 +15,8 @@ func getHeaders(cfg *config.Config) map[string][]string {
 
 	return map[string][]string{
 		"Content-Type":    {"application/json"},
-		"x-rapidapi-host": {cfg.GeniusApiHost},
-		"x-rapidapi-key":  {cfg.GeniusApiKey},
+		"x-rapidapi-host": {cfg.GeniusRapidApiHost},
+		"x-rapidapi-key":  {cfg.GeniusRapidApiKey},
 		"User-Agent":      {randomUserAgent},
 		"Accept":          {"*/*"},
 		"Connection":      {"keep-alive"},
@@ -24,8 +24,8 @@ func getHeaders(cfg *config.Config) map[string][]string {
 	}
 }
 
-func CreateEndpointRequest(cfg *config.Config, endpoint string, method string) (http.Request, error) {
-	reqUrl, err := url.Parse(fmt.Sprintf("https://%s/%s", cfg.GeniusApiHost, endpoint))
+func CreateEndpointRequest(cfg *config.Config, host string, endpoint string, method string) (http.Request, error) {
+	reqUrl, err := url.Parse(fmt.Sprintf("https://%s/%s", host, endpoint))
 	if err != nil {
 		return http.Request{}, err
 	}

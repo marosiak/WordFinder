@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"github.com/marosiak/WordFinder/utils"
 	"os"
+	"strings"
 
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
@@ -52,7 +54,7 @@ func getCliApp() (map[string]string, error) {
 func main() {
 	inputs, err := getCliApp()
 	songName := inputs["query"]
-	//keyword := inputs["keyword"]
+	keyword := inputs["keyword"]
 	_, scanArtist := inputs["scan-artist"]
 
 	if err != nil {
@@ -70,21 +72,37 @@ func main() {
 
 	genius := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger.WithField("component", "genius_provider"))
 	lyricsService := internal.NewLyricsService(&cfg, genius, logger)
-
 	if scanArtist {
 		songInfos, err := lyricsService.GetAllSongsInfoByArtist(songName)
 		if err != nil {
 			logger.WithError(err).Error("cannot fetch all songs infos by artist")
 		}
-		for _, v := range songInfos {
-			println(v.Title)
+
+		results := make(map[string]int)
+
+		for _, songInfo := range songInfos {
+			song, err := lyricsService.GetSongFromInfo(songInfo)
+			if err != nil {
+				logger.WithError(err)
+			}
+
+			results[song.Info.Title] = strings.Count(strings.ToLower(song.Lyrics), strings.ToLower(keyword))
 		}
 
-		song, err := lyricsService.GetSongFromInfo(songInfos[0])
-		if err != nil {
-			return
+		occurredAtleastOnceCounter := 0
+		for _, val := range results {
+			if val > 0 {
+				occurredAtleastOnceCounter = occurredAtleastOnceCounter + 1
+			}
 		}
-		println(song.Lyrics)
+
+		println("\n================================")
+		fmt.Printf("Word \"%s\" occurred in %d out of %d songs from %s\n", keyword, occurredAtleastOnceCounter, len(results))
+		fmt.Printf("%d% songs contains word \"%s\"\n", (occurredAtleastOnceCounter/len(results))*100, keyword)
+
+		println("\n\n\n")
+		for key, val := range results {
+			fmt.Printf("%d times : \"%s\n\"", val, key)
+		}
 	}
-
 }

@@ -26,12 +26,11 @@ type LyricsService interface {
 	GetSongInfoByName(name string) (SongInfo, error)
 	GetSongInfoByID(id int) (SongInfo, error)
 	GetSongByName(name string) (Song, error)
-	GetSongFromInfo(songInfo SongInfo) (Song, error)
 	GetAllSongsInfoByArtist(artistName string) ([]SongInfo, error)
+	GetSongFromInfo(songInfo SongInfo) (Song, error)
 }
 
 type InternalLyricsService struct {
-	// in future there could be list of few providers, nad in case one couldn't find song, the other ones would try
 	geniusProvider GeniusProvider
 	logger         *log.Entry
 	cfg            *config.Config
@@ -131,8 +130,6 @@ func (s *InternalLyricsService) GetAllSongsInfoByArtist(desiredArtistName string
 			LyricsEndpoint: song.LyricsPath,
 		})
 	}
-
-	fmt.Printf("Filtered: %d songs\n", len(foundSongs))
 
 	return songs, nil
 }
