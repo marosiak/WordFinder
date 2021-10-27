@@ -96,9 +96,9 @@ func main() {
 			}
 		}
 
-		println("\n================================")
-		fmt.Printf("Word \"%s\" occurred in %d out of %d songs from %s\n", keyword, occurredAtleastOnceCounter, len(results))
-		fmt.Printf("%d% songs contains word \"%s\"\n", (occurredAtleastOnceCounter/len(results))*100, keyword)
+		println("\n================================\n")
+		fmt.Printf("Word \"%s\" occurred in %d out of %d songs from %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
+		fmt.Printf("%d songs contains word \"%s\"\n", (occurredAtleastOnceCounter/len(results))*100, keyword)
 
 		println("\n\n\n")
 		for key, val := range results {
