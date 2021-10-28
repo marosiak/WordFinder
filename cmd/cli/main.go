@@ -5,6 +5,7 @@ import (
 	"github.com/marosiak/WordFinder/utils"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
@@ -52,6 +53,7 @@ func getCliApp() (map[string]string, error) {
 }
 
 func main() {
+	startTime := time.Now()
 	inputs, err := getCliApp()
 	songName := inputs["query"]
 	keyword := inputs["keyword"]
@@ -105,4 +107,6 @@ func main() {
 			fmt.Printf("%d times : \"%s\n\"", val, key)
 		}
 	}
+	println("\n\n")
+	println(time.Since(startTime).String())
 }
