@@ -116,7 +116,7 @@ func main() {
 
 		println("\n\n\n")
 		for key, val := range results {
-			fmt.Printf("%d times : \"%s\n\"", val, key)
+			fmt.Printf("%d times : \"%s\"\n", val, key)
 		}
 
 		println("\n================================\n")
