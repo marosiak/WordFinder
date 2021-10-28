@@ -220,6 +220,9 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 //
 //	return songs, err
 //}
+func (s *InternalGeniusProvider) findSongsByArtistID() {
+
+}
 
 func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
 	var songs geniusSongs
@@ -243,7 +246,10 @@ REQUEST:
 		url = fmt.Sprintf("%s/%s/%d/%s?per_page=%d?page=%d", s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, perPageLimit, currentPage)
 	}
 
-	println(url)
+	if s.cfg.Debug {
+		println(url)
+	}
+
 	req, err := utils.CreatePathRequest(s.cfg, url, "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")

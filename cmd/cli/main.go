@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/marosiak/WordFinder/utils"
-	"os"
-	"strings"
-
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
+	"github.com/marosiak/WordFinder/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
+	"os"
+	"strings"
+	"sync"
+	"time"
 )
 
 func getCliApp() (map[string]string, error) {
@@ -52,6 +53,7 @@ func getCliApp() (map[string]string, error) {
 }
 
 func main() {
+	startTime := time.Now()
 	inputs, err := getCliApp()
 	songName := inputs["query"]
 	keyword := inputs["keyword"]
@@ -78,18 +80,34 @@ func main() {
 			logger.WithError(err).Error("cannot fetch all songs infos by artist")
 		}
 
-		results := make(map[string]int)
+		songCh := make(chan internal.Song, 30)
+		wg := sync.WaitGroup{}
 
 		for _, songInfo := range songInfos {
-			song, err := lyricsService.GetSongFromInfo(songInfo)
-			if err != nil {
-				logger.WithError(err)
-			}
+			songInfo := songInfo
+			wg.Add(1)
 
+			go func() {
+				defer wg.Done()
+				song, err := lyricsService.GetSongFromInfo(songInfo)
+				if err != nil {
+					logger.WithError(err)
+				}
+				songCh <- song
+			}()
+		}
+
+		go func() {
+			wg.Wait()
+			defer close(songCh)
+		}()
+
+		occurredAtleastOnceCounter := 0
+		results := make(map[string]int)
+		for song := range songCh {
 			results[song.Info.Title] = strings.Count(strings.ToLower(song.Lyrics), strings.ToLower(keyword))
 		}
 
-		occurredAtleastOnceCounter := 0
 		for _, val := range results {
 			if val > 0 {
 				occurredAtleastOnceCounter = occurredAtleastOnceCounter + 1
@@ -97,12 +115,12 @@ func main() {
 		}
 
 		println("\n================================\n")
-		fmt.Printf("Word \"%s\" occurred in %d out of %d songs from %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
-		fmt.Printf("%d songs contains word \"%s\"\n", (occurredAtleastOnceCounter/len(results))*100, keyword)
+		fmt.Printf("Word \"%s\" occurred in %d out of %d songs by %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
 
 		println("\n\n\n")
 		for key, val := range results {
 			fmt.Printf("%d times : \"%s\n\"", val, key)
 		}
 	}
+	fmt.Printf("\nCli ended after %s", time.Since(startTime).String())
 }

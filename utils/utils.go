@@ -65,9 +65,9 @@ func CreateHttpClient(cfg *config.Config) *http.Client {
 	return &http.Client{
 		Timeout: cfg.RequestTimeout,
 		Transport: &http.Transport{
-			MaxIdleConns:        50,
-			MaxIdleConnsPerHost: 50,
-			MaxConnsPerHost:     50,
+			MaxIdleConns:        20,
+			MaxIdleConnsPerHost: 20,
+			MaxConnsPerHost:     20,
 			IdleConnTimeout:     cfg.RequestTimeout,
 		},
 	}
