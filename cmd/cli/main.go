@@ -89,7 +89,7 @@ func main() {
 
 			go func() {
 				defer wg.Done()
-				song, err := lyricsService.GetSongFromInfo(songInfo)
+				song, err := lyricsService.GetSongFromInfo(songInfo) // TODO: define GetSongsFromInfo() which will handle concurrency, for now it's shit but it works for PoC
 				if err != nil {
 					logger.WithError(err)
 				}
@@ -114,13 +114,13 @@ func main() {
 			}
 		}
 
-		println("\n================================\n")
-		fmt.Printf("Word \"%s\" occurred in %d out of %d songs by %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
-
 		println("\n\n\n")
 		for key, val := range results {
 			fmt.Printf("%d times : \"%s\n\"", val, key)
 		}
+
+		println("\n================================\n")
+		fmt.Printf("\nWord \"%s\" occurred in %d out of %d songs by %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
 	}
 	fmt.Printf("\nCli ended after %s", time.Since(startTime).String())
 }
