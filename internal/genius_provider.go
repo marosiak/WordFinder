@@ -28,7 +28,7 @@ const (
 	maxLyricsRetries = 2
 )
 
-type GeniusSong struct {
+type GeniusSongInfo struct {
 	ID            int
 	LyricsPath    string       `json:"path"`
 	FullTitle     string       `json:"full_title"`
@@ -36,9 +36,14 @@ type GeniusSong struct {
 	LyricsState   LyricsState  `json:"lyrics_state"`
 }
 
-type geniusSongs []GeniusSong
+type GeniusSong struct {
+	Lyrics string
+	Info   GeniusSongInfo
+}
 
-func (s geniusSongs) ExistsByID(id int) bool {
+type geniusSonginfos []GeniusSongInfo
+
+func (s geniusSonginfos) ExistsByID(id int) bool {
 	for _, song := range s {
 		if song.ID == id {
 			return true
@@ -67,18 +72,20 @@ type SearchResult struct {
 	FullTitle      string       `json:"full_title"`
 	LyricsEndpoint string       `json:"path"`
 	PrimaryArtist  GeniusArtist `json:"primary_artist"`
+	LyricsState    string       `json:"lyrics_state"`
 }
 
 var _ GeniusProvider = &InternalGeniusProvider{}
 
 type GeniusProvider interface {
 	Search(query string) ([]SearchResult, error)
+	GetSongInfoByID(id int) (GeniusSongInfo, error)
 	GetSongByID(id int) (GeniusSong, error)
-	GetLyrics(song GeniusSong) (string, error)
-	GetLyricsFromPath(lyricsPath string) (string, error)
-	//FindSongsByArtistID(artistID int) ([]GeniusSong, error)
-	FindSongsByArtistID(artistID int) ([]GeniusSong, error)
+	GetSongsByIDs(id []int) ([]GeniusSong, error)
+	GetSongByName(name string) (GeniusSong, error)
 	FindArtist(artistName string) (GeniusArtist, error)
+	FindSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error)
+	FindSongsByArtistID(artistID int) ([]GeniusSong, error)
 }
 
 type InternalGeniusProvider struct {
@@ -94,17 +101,88 @@ func NewGeniusProvider(client *http.Client, cfg *config.Config, logger *log.Entr
 func (s *InternalGeniusProvider) FindArtist(artistName string) (GeniusArtist, error) {
 	return GeniusArtist{}, nil
 }
+
 func (s *InternalGeniusProvider) GetSongByID(id int) (GeniusSong, error) {
+	songInfo, err := s.GetSongInfoByID(id)
+	if err != nil {
+		s.logger.WithError(err).Error("GetSongByID getting song info by ID ", id)
+	}
+
+	lyrics, err := s.getLyrics(songInfo)
+	return GeniusSong{
+		Lyrics: lyrics,
+		Info:   songInfo,
+	}, err
+}
+
+func (s *InternalGeniusProvider) GetSongsByIDs(ids []int) ([]GeniusSong, error) {
+	songCh := make(chan GeniusSong, s.cfg.MaxChannelBufferSize)
+	wg := sync.WaitGroup{}
+
+	for _, id := range ids {
+		wg.Add(1)
+		id := id
+		go func() {
+			defer wg.Done()
+			song, err := s.GetSongByID(id)
+			if err != nil {
+				s.logger.WithError(err).Error()
+				return
+			}
+			songCh <- song
+		}()
+
+	}
+
+	go func() {
+		wg.Wait()
+		close(songCh)
+	}()
+
+	var songs []GeniusSong
+	for song := range songCh {
+		songs = append(songs, song)
+	}
+	return songs, nil
+}
+
+func (s *InternalGeniusProvider) GetSongByName(name string) (GeniusSong, error) {
+	searchResults, err := s.Search(name)
+	if err != nil {
+		return GeniusSong{}, err
+	}
+
+	songResult := searchResults[0]
+	artist := songResult.PrimaryArtist
+	lyrics, err := s.getLyricsFromPath(songResult.LyricsEndpoint)
+
+	return GeniusSong{
+		Lyrics: lyrics,
+		Info: GeniusSongInfo{
+			ID:         songResult.ID,
+			LyricsPath: songResult.LyricsEndpoint,
+			FullTitle:  songResult.FullTitle,
+			PrimaryArtist: GeniusArtist{
+				ID:      artist.ID,
+				ApiPath: artist.ApiPath,
+				Name:    artist.Name,
+			},
+			LyricsState: LyricsState(songResult.LyricsState),
+		},
+	}, err
+}
+
+func (s *InternalGeniusProvider) GetSongInfoByID(id int) (GeniusSongInfo, error) {
 	req, err := utils.CreateEndpointRequest(s.cfg, s.cfg.GeniusRapidApiHost, fmt.Sprintf("%s/%d", songEndpoint, id), "GET")
 	if err != nil {
 		s.logger.WithError(err).Error("creating url")
-		return GeniusSong{}, err
+		return GeniusSongInfo{}, err
 	}
 
 	res, err := s.client.Do(&req)
 	if err != nil {
 		s.logger.WithError(err).Error("creating http client")
-		return GeniusSong{}, err
+		return GeniusSongInfo{}, err
 	}
 	defer res.Body.Close()
 
@@ -115,7 +193,7 @@ func (s *InternalGeniusProvider) GetSongByID(id int) (GeniusSong, error) {
 
 	type songResponse struct {
 		Response struct {
-			Song GeniusSong `json:"song"`
+			Song GeniusSongInfo `json:"song"`
 		}
 	}
 
@@ -179,16 +257,56 @@ func getUrlForPage(host string, artistEndpoint string, artistID int, songEndpoin
 }
 
 func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
-	var songs geniusSongs
+	songInfos, err := s.FindSongInfosByArtistID(artistID)
+	if err != nil {
+		return []GeniusSong{}, err
+	}
+
+	songCh := make(chan GeniusSong, s.cfg.MaxChannelBufferSize)
+	wg := sync.WaitGroup{}
+
+	for _, songInfo := range songInfos {
+		wg.Add(1)
+		songInfo := songInfo
+		go func() {
+			defer wg.Done()
+
+			lyrics, err := s.getLyrics(songInfo)
+			if err != nil {
+				return
+			}
+
+			songCh <- GeniusSong{
+				Lyrics: lyrics,
+				Info:   songInfo,
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(songCh)
+	}()
+
+	var songs []GeniusSong
+	for song := range songCh {
+		songs = append(songs, song)
+	}
+
+	return songs, nil
+}
+
+func (s *InternalGeniusProvider) FindSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error) {
+	var songs geniusSonginfos
 
 	type artistSongsResponse struct {
 		Response struct {
-			Songs    []GeniusSong `json:"songs"`
-			NextPage int          `json:"next_page"`
+			Songs    []GeniusSongInfo `json:"songs"`
+			NextPage int              `json:"next_page"`
 		} `json:"response"`
 	}
 
-	artistSongRespCh := make(chan artistSongsResponse)
+	artistSongRespCh := make(chan artistSongsResponse, s.cfg.MaxChannelBufferSize)
 	errCh := make(chan error)
 	wg := sync.WaitGroup{}
 
@@ -251,11 +369,11 @@ func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong
 	return songs, nil
 }
 
-func (s *InternalGeniusProvider) GetLyrics(song GeniusSong) (string, error) {
-	return s.GetLyricsFromPath(song.LyricsPath)
+func (s *InternalGeniusProvider) getLyrics(songInfo GeniusSongInfo) (string, error) {
+	return s.getLyricsFromPath(songInfo.LyricsPath)
 }
 
-func (s *InternalGeniusProvider) GetLyricsFromPath(lyricsPath string) (string, error) {
+func (s *InternalGeniusProvider) getLyricsFromPath(lyricsPath string) (string, error) {
 	urlStr := fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath)
 	req, err := utils.CreatePathRequest(s.cfg, urlStr, "GET")
 	if err != nil {

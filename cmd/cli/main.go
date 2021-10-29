@@ -73,11 +73,11 @@ func main() {
 
 	genius := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger.WithField("component", "genius_provider"))
 	lyricsService := internal.NewLyricsService(&cfg, genius, logger)
+
 	if scanArtist {
-		songs, err := lyricsService.GetAllSongsByArtist(query)
+		songs, err := lyricsService.GetSongsByArtist(query)
 		if err != nil {
 			logger.WithError(err).Fatal("cannot fetch all songs by artist")
-
 		}
 
 		occurredAtleastOnceCounter := 0

@@ -2,17 +2,16 @@ package internal
 
 import (
 	"errors"
-	"fmt"
 	"github.com/marosiak/WordFinder/config"
 	log "github.com/sirupsen/logrus"
 	"strings"
-	"sync"
 )
 
 type SongInfo struct {
 	AuthorName     string
 	Title          string
 	LyricsEndpoint string
+	GeniusID       int
 }
 
 type Song struct {
@@ -28,8 +27,10 @@ type LyricsService interface {
 	GetSongInfoByName(name string) (SongInfo, error)
 	GetSongInfoByID(id int) (SongInfo, error)
 	GetSongByName(name string) (Song, error)
-	GetAllSongsInfoByArtist(artistName string) ([]SongInfo, error)
 	GetSongFromInfo(songInfo SongInfo) (Song, error)
+
+	GetSongsInfosByArtist(artistName string) ([]SongInfo, error)
+	GetSongsByArtist(artistName string) ([]Song, error)
 	GetSongsFromSongInfos(songInfos []SongInfo) ([]Song, error)
 }
 
@@ -45,19 +46,6 @@ func NewLyricsService(cfg *config.Config, geniusProvider GeniusProvider, logger 
 
 var _ LyricsService = &InternalLyricsService{}
 
-func (s *InternalLyricsService) GetSongInfoByID(id int) (SongInfo, error) {
-	geniusSong, err := s.geniusProvider.GetSongByID(id)
-	if err != nil {
-		return SongInfo{}, err
-	}
-
-	return SongInfo{
-		AuthorName:     geniusSong.PrimaryArtist.Name,
-		Title:          geniusSong.FullTitle,
-		LyricsEndpoint: geniusSong.LyricsPath,
-	}, nil
-}
-
 func (s *InternalLyricsService) GetSongInfoByName(songName string) (SongInfo, error) {
 	searchResults, err := s.geniusProvider.Search(songName)
 	if err != nil {
@@ -67,107 +55,127 @@ func (s *InternalLyricsService) GetSongInfoByName(songName string) (SongInfo, er
 	song := searchResults[0]
 
 	return SongInfo{
+		GeniusID:       song.ID,
 		AuthorName:     song.PrimaryArtist.Name,
 		Title:          song.FullTitle,
 		LyricsEndpoint: song.LyricsEndpoint,
 	}, nil
 }
 
+func (s *InternalLyricsService) GetSongInfoByID(id int) (SongInfo, error) {
+	geniusSong, err := s.geniusProvider.GetSongInfoByID(id)
+	if err != nil {
+		return SongInfo{}, err
+	}
+
+	return SongInfo{
+		GeniusID:       geniusSong.ID,
+		AuthorName:     geniusSong.PrimaryArtist.Name,
+		Title:          geniusSong.FullTitle,
+		LyricsEndpoint: geniusSong.LyricsPath,
+	}, nil
+}
+
 func (s *InternalLyricsService) GetSongByName(songName string) (Song, error) {
-	songInfo, err := s.GetSongInfoByName(songName)
+	geniusSong, err := s.geniusProvider.GetSongByName(songName)
 	if err != nil {
 		return Song{}, err
 	}
 
-	lyrics, err := s.geniusProvider.GetLyricsFromPath(songInfo.LyricsEndpoint)
+	return Song{
+		Lyrics: geniusSong.Lyrics,
+		Info: SongInfo{
+			GeniusID:       geniusSong.Info.ID,
+			AuthorName:     geniusSong.Info.PrimaryArtist.Name,
+			Title:          geniusSong.Info.FullTitle,
+			LyricsEndpoint: geniusSong.Info.LyricsPath,
+		},
+	}, nil
+}
+
+func (s *InternalLyricsService) GetSongFromInfo(songInfo SongInfo) (Song, error) {
+	song, err := s.geniusProvider.GetSongByID(songInfo.GeniusID)
 	if err != nil {
 		return Song{}, err
 	}
 
 	return Song{
 		Info:   songInfo,
-		Lyrics: lyrics,
+		Lyrics: song.Lyrics,
 	}, nil
 }
 
-func (s *InternalLyricsService) GetSongsFromSongInfos(songInfos []SongInfo) ([]Song, error) {
-	songCh := make(chan Song)
-	wg := sync.WaitGroup{}
-
-	for _, songInfo := range songInfos {
-		wg.Add(1)
-		songInfo := songInfo
-		go func() {
-			defer wg.Done()
-			song, err := s.GetSongFromInfo(songInfo)
-			if err != nil {
-				s.logger.WithError(err)
-				return
-			}
-			songCh <- song
-		}()
+func (s *InternalLyricsService) GetSongsInfosByArtist(artistName string) ([]SongInfo, error) {
+	primaryArtistID, err := s.findArtistID(artistName)
+	if err != nil {
+		s.logger.WithError(err).Error("GetSongsInfosByArtist find artist ID for ", artistName)
 	}
 
-	go func() {
-		wg.Wait()
-		close(songCh)
-	}()
+	foundSongs, err := s.geniusProvider.FindSongInfosByArtistID(primaryArtistID)
+	if err != nil {
+		return []SongInfo{}, err
+	}
 
-	var songs []Song
-	for song := range songCh {
-		songs = append(songs, song)
+	var songs []SongInfo
+	for _, song := range foundSongs {
+		songs = append(songs, SongInfo{
+			AuthorName:     song.PrimaryArtist.Name,
+			Title:          song.FullTitle,
+			LyricsEndpoint: song.LyricsPath,
+		})
 	}
 
 	return songs, nil
 }
 
-func (s *InternalLyricsService) GetSongFromInfo(songInfo SongInfo) (Song, error) {
-	lyrics, err := s.geniusProvider.GetLyricsFromPath(songInfo.LyricsEndpoint)
-	if err != nil {
-		return Song{}, err
+func (s *InternalLyricsService) GetSongsFromSongInfos(songInfos []SongInfo) ([]Song, error) {
+	var ids []int
+	for _, songInfo := range songInfos {
+		ids = append(ids, songInfo.GeniusID)
 	}
 
-	return Song{
-		Info:   songInfo,
-		Lyrics: lyrics,
-	}, nil
+	geniusSongs, err := s.geniusProvider.GetSongsByIDs(ids)
+	if err != nil {
+		return []Song{}, nil
+	}
+
+	var songs []Song
+	for _, geniusSong := range geniusSongs {
+		songs = append(songs, Song{
+			Info: SongInfo{
+				AuthorName:     geniusSong.Info.PrimaryArtist.Name,
+				Title:          geniusSong.Info.FullTitle,
+				LyricsEndpoint: geniusSong.Info.LyricsPath,
+				GeniusID:       geniusSong.Info.ID,
+			},
+			Lyrics: geniusSong.Lyrics,
+		})
+	}
+	return songs, nil
 }
 
-func (s *InternalLyricsService) GetAllSongsByArtist(artistName string) ([]Song, error) {
-	primaryArtistID, err := s.findArtistID(artistName)
+func (s *InternalLyricsService) GetSongsByArtist(artistName string) ([]Song, error) {
+	artistID, err := s.findArtistID(artistName)
 	if err != nil {
-		s.logger.WithError(err).Error("GetAllSongsByArtist cannot find artist ID for ", artistName)
+		return []Song{}, err
 	}
 
-	geniusSongs, err := s.geniusProvider.FindSongsByArtistID(primaryArtistID)
+	geniusSongs, err := s.geniusProvider.FindSongsByArtistID(artistID)
 	if err != nil {
 		return nil, err
 	}
 
 	var songs []Song
-
 	for _, geniusSong := range geniusSongs {
-		song, err := s.geniusProvider.GetSongByID(geniusSong.ID)
-		if err != nil {
-			s.logger.WithError(err)
-			continue
-		}
-
-		lyrics, err := s.geniusProvider.GetLyrics(song)
-		if err != nil {
-			s.logger.WithError(err).Error("GetAllSongsByArtist cannot GetLyrics")
-		}
-
 		songs = append(songs, Song{
 			Info: SongInfo{
-				AuthorName:     song.PrimaryArtist.Name,
-				Title:          song.FullTitle,
-				LyricsEndpoint: song.LyricsPath,
+				AuthorName:     geniusSong.Info.PrimaryArtist.Name,
+				Title:          geniusSong.Info.FullTitle,
+				LyricsEndpoint: geniusSong.Info.LyricsPath,
 			},
-			Lyrics: lyrics,
+			Lyrics: geniusSong.Lyrics,
 		})
 	}
-
 	return songs, nil
 }
 
@@ -180,34 +188,9 @@ func (s *InternalLyricsService) findArtistID(desiredArtistName string) (int, err
 	desiredArtistName = strings.ToLower(desiredArtistName)
 	for _, result := range searchResults {
 		primaryArtistName := strings.ToLower(result.PrimaryArtist.Name)
-
 		if strings.Contains(primaryArtistName, desiredArtistName) {
 			return result.PrimaryArtist.ID, nil
 		}
 	}
 	return 0, errors.New("artist not found")
-}
-
-func (s *InternalLyricsService) GetAllSongsInfoByArtist(artistName string) ([]SongInfo, error) {
-	primaryArtistID, err := s.findArtistID(artistName)
-	if err != nil {
-		s.logger.WithError(err).Error("GetAllSongsInfoByArtist find artist ID for ", artistName)
-	}
-
-	foundSongs, err := s.geniusProvider.FindSongsByArtistID(primaryArtistID)
-	if err != nil {
-		return []SongInfo{}, err
-	}
-	fmt.Printf("Found: %d songs\n", len(foundSongs))
-
-	var songs []SongInfo
-	for _, song := range foundSongs {
-		songs = append(songs, SongInfo{
-			AuthorName:     song.PrimaryArtist.Name,
-			Title:          song.FullTitle,
-			LyricsEndpoint: song.LyricsPath,
-		})
-	}
-
-	return songs, nil
 }
