@@ -6,13 +6,14 @@ import (
 )
 
 type Config struct {
-	Debug              bool
-	GeniusRapidApiHost string        `split_words:"true" required:"true"`
-	GeniusHost         string        `split_words:"true" required:"true"`
-	GeniusRapidApiKey  string        `split_words:"true" required:"true"`
-	GeniusApiHost      string        `split_words:"true" required:"true"`
-	UserAgents         []string      `split_words:"true"`
-	RequestTimeout     time.Duration `split_words:"true" default:"5s"`
+	Debug                bool
+	GeniusRapidApiHost   string        `split_words:"true" required:"true"`
+	GeniusHost           string        `split_words:"true" required:"true"`
+	GeniusRapidApiKey    string        `split_words:"true" required:"true"`
+	GeniusApiHost        string        `split_words:"true" required:"true"`
+	UserAgents           []string      `split_words:"true"`
+	RequestTimeout       time.Duration `split_words:"true" default:"5s"`
+	MaxChannelBufferSize int           `split_words:"true" default:"30"`
 }
 
 func NewConfig() (Config, error) {
