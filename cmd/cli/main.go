@@ -9,7 +9,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -55,7 +54,7 @@ func getCliApp() (map[string]string, error) {
 func main() {
 	startTime := time.Now()
 	inputs, err := getCliApp()
-	songName := inputs["query"]
+	query := inputs["query"]
 	keyword := inputs["keyword"]
 	_, scanArtist := inputs["scan-artist"]
 
@@ -69,42 +68,21 @@ func main() {
 
 	cfg, err := config.NewConfig()
 	if err != nil {
-		logger.WithError(err).Error("config creating error")
+		logger.WithError(err).Fatal("config creating error")
 	}
 
 	genius := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger.WithField("component", "genius_provider"))
 	lyricsService := internal.NewLyricsService(&cfg, genius, logger)
 	if scanArtist {
-		songInfos, err := lyricsService.GetAllSongsInfoByArtist(songName)
+		songs, err := lyricsService.GetAllSongsByArtist(query)
 		if err != nil {
-			logger.WithError(err).Error("cannot fetch all songs infos by artist")
+			logger.WithError(err).Fatal("cannot fetch all songs by artist")
+
 		}
-
-		songCh := make(chan internal.Song, 30)
-		wg := sync.WaitGroup{}
-
-		for _, songInfo := range songInfos {
-			songInfo := songInfo
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
-				song, err := lyricsService.GetSongFromInfo(songInfo) // TODO: define GetSongsFromInfo() which will handle concurrency, for now it's shit but it works for PoC
-				if err != nil {
-					logger.WithError(err)
-				}
-				songCh <- song
-			}()
-		}
-
-		go func() {
-			wg.Wait()
-			defer close(songCh)
-		}()
 
 		occurredAtleastOnceCounter := 0
 		results := make(map[string]int)
-		for song := range songCh {
+		for _, song := range songs {
 			results[song.Info.Title] = strings.Count(strings.ToLower(song.Lyrics), strings.ToLower(keyword))
 		}
 
@@ -120,7 +98,7 @@ func main() {
 		}
 
 		println("\n================================\n")
-		fmt.Printf("\nWord \"%s\" occurred in %d out of %d songs by %s\n", keyword, occurredAtleastOnceCounter, len(results), songInfos[0].AuthorName)
+		fmt.Printf("\nWord \"%s\" occurred in %d out of %d songs by %s\n", keyword, occurredAtleastOnceCounter, len(results), songs[0].Info.AuthorName)
 	}
 	fmt.Printf("\nCli ended after %s", time.Since(startTime).String())
 }
