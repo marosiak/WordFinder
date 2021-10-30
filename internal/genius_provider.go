@@ -12,15 +12,17 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 )
 
 var (
-	searchEndpoint   = "search"
-	songEndpoint     = "songs"
-	artistEndpoint   = "artists"
-	emptyLyricsErr   = errors.New("empty lyrics")
-	blockedSelectors = []string{"script", "#onetrust-consent-sdk"}
+	searchEndpoint    = "search"
+	songEndpoint      = "songs"
+	artistEndpoint    = "artists"
+	emptyLyricsErr    = errors.New("empty lyrics")
+	lyricsUncompleted = errors.New("lyrics are not completed")
+	blockedSelectors  = []string{"script", "#onetrust-consent-sdk"}
 )
 
 const (
@@ -55,9 +57,7 @@ func (s geniusSonginfos) ExistsByID(id int) bool {
 type LyricsState string
 
 const (
-	LyricsComplete   LyricsState = "complete"
-	LyricsIncomplete             = "incomplete"
-	LyricsUnreleased             = "unreleased"
+	LyricsComplete LyricsState = "complete"
 )
 
 type GeniusArtist struct {
@@ -83,9 +83,10 @@ type GeniusProvider interface {
 	GetSongByID(id int) (GeniusSong, error)
 	GetSongsByIDs(id []int) ([]GeniusSong, error)
 	GetSongByName(name string) (GeniusSong, error)
-	FindArtist(artistName string) (GeniusArtist, error)
-	FindSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error)
-	FindSongsByArtistID(artistID int) ([]GeniusSong, error)
+
+	GetArtist(artistName string) (GeniusArtist, error)
+	GetSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error)
+	GetSongsByArtistID(artistID int) ([]GeniusSong, error)
 }
 
 type InternalGeniusProvider struct {
@@ -98,7 +99,24 @@ func NewGeniusProvider(client *http.Client, cfg *config.Config, logger *log.Entr
 	return &InternalGeniusProvider{client: client, cfg: cfg, logger: logger}
 }
 
-func (s *InternalGeniusProvider) FindArtist(artistName string) (GeniusArtist, error) {
+func (s *InternalGeniusProvider) GetArtist(artistName string) (GeniusArtist, error) {
+	searchResults, err := s.Search(artistName)
+	if err != nil {
+		return GeniusArtist{}, err
+	}
+
+	artistName = strings.ToLower(artistName)
+	for _, result := range searchResults {
+		songArtistName := strings.ToLower(result.PrimaryArtist.Name)
+		if strings.Contains(songArtistName, artistName) {
+			return GeniusArtist{
+				ID:      result.PrimaryArtist.ID,
+				ApiPath: result.PrimaryArtist.ApiPath,
+				Name:    result.FullTitle,
+			}, nil
+		}
+	}
+
 	return GeniusArtist{}, nil
 }
 
@@ -154,6 +172,11 @@ func (s *InternalGeniusProvider) GetSongByName(name string) (GeniusSong, error) 
 
 	songResult := searchResults[0]
 	artist := songResult.PrimaryArtist
+
+	if LyricsState(songResult.LyricsState) != LyricsComplete {
+		return GeniusSong{}, lyricsUncompleted
+	}
+
 	lyrics, err := s.getLyricsFromPath(songResult.LyricsEndpoint)
 
 	return GeniusSong{
@@ -186,7 +209,7 @@ func (s *InternalGeniusProvider) GetSongInfoByID(id int) (GeniusSongInfo, error)
 	}
 	defer res.Body.Close()
 
-	bytes, err := io.ReadAll(res.Body)
+	by, err := io.ReadAll(res.Body)
 	if err != nil {
 		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
 	}
@@ -198,7 +221,7 @@ func (s *InternalGeniusProvider) GetSongInfoByID(id int) (GeniusSongInfo, error)
 	}
 
 	songPayload := songResponse{}
-	err = json.Unmarshal(bytes, &songPayload)
+	err = json.Unmarshal(by, &songPayload)
 	return songPayload.Response.Song, err
 }
 
@@ -216,7 +239,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	}
 	defer res.Body.Close()
 
-	bytes, err := io.ReadAll(res.Body)
+	by, err := io.ReadAll(res.Body)
 	if err != nil {
 		s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
 	}
@@ -233,7 +256,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	}
 
 	searchResult := searchResultResponse{}
-	err = json.Unmarshal(bytes, &searchResult)
+	err = json.Unmarshal(by, &searchResult)
 
 	var results []SearchResult
 	for _, hit := range searchResult.Response.Hits {
@@ -243,7 +266,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	return results, err
 }
 
-func getUrlForPage(host string, artistEndpoint string, artistID int, songEndpoint string, page int) string {
+func getUrlForSongsList(host string, artistID int, songEndpoint string, page int) string {
 	var url string
 
 	if page == 1 {
@@ -256,8 +279,8 @@ func getUrlForPage(host string, artistEndpoint string, artistID int, songEndpoin
 	return url
 }
 
-func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong, error) {
-	songInfos, err := s.FindSongInfosByArtistID(artistID)
+func (s *InternalGeniusProvider) GetSongsByArtistID(artistID int) ([]GeniusSong, error) {
+	songInfos, err := s.GetSongInfosByArtistID(artistID)
 	if err != nil {
 		return []GeniusSong{}, err
 	}
@@ -296,7 +319,7 @@ func (s *InternalGeniusProvider) FindSongsByArtistID(artistID int) ([]GeniusSong
 	return songs, nil
 }
 
-func (s *InternalGeniusProvider) FindSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error) {
+func (s *InternalGeniusProvider) GetSongInfosByArtistID(artistID int) ([]GeniusSongInfo, error) {
 	var songs geniusSonginfos
 
 	type artistSongsResponse struct {
@@ -307,44 +330,54 @@ func (s *InternalGeniusProvider) FindSongInfosByArtistID(artistID int) ([]Genius
 	}
 
 	artistSongRespCh := make(chan artistSongsResponse, s.cfg.MaxChannelBufferSize)
-	errCh := make(chan error)
 	wg := sync.WaitGroup{}
 
-	for i := 0; i < 100; i++ {
+	// Well, this part is tricky, because I don't know any way to fetch pages concurrently if I don't know maxPage
+	// So there are 2 approaches, the current one does run routines for [0, 99] pages and fetch data and it's fast
+	// Another way is to batch requests per 10, then have channel with information if problem occurred,
+	// after that read if any page had empty data, if it is false, then run another 10
+	// but the point is - it is faster to get 100 routines at the same time, than 50 batched 5 times per 10
+	for i := 0; i <= s.cfg.MaxPagesForArtist; i++ {
 		i := i
-		go func() {
-			url := getUrlForPage(s.cfg.GeniusApiHost, artistEndpoint, artistID, songEndpoint, i)
-			if s.cfg.Debug {
-				println(url)
-			}
 
+		go func() {
 			wg.Add(1)
 			defer wg.Done()
+			songsUrl := getUrlForSongsList(s.cfg.GeniusApiHost, artistID, songEndpoint, i)
+			if s.cfg.Debug {
+				println(songsUrl)
+			}
 
-			req, err := utils.CreatePathRequest(s.cfg, url, "GET")
+			req, err := utils.CreatePathRequest(s.cfg, songsUrl, "GET")
 			if err != nil {
-				log.WithError(err).Error("creating url")
-				errCh <- err
+				s.logger.WithError(err)
 				return
 			}
 
 			res, err := s.client.Do(&req)
 			if err != nil {
-				log.WithError(err).Error("creating http client")
-				errCh <- err
+				s.logger.WithError(err)
 				return
 			}
 			defer res.Body.Close()
 
 			by, err := io.ReadAll(res.Body)
 			if err != nil {
-				s.logger.WithError(err).Errorf("reading response status: %s", res.Status)
-				errCh <- err
+				s.logger.WithError(err)
 				return
 			}
 
 			var artistSongsResp artistSongsResponse
 			err = json.Unmarshal(by, &artistSongsResp)
+			if err != nil {
+				s.logger.WithError(err)
+				return
+			}
+
+			//if len(artistSongsResp.Response.Songs) == 0 {
+			//	log.Printf("Asking for non existing ?page=%d", i)
+			//}
+
 			artistSongRespCh <- artistSongsResp
 		}()
 	}
@@ -352,8 +385,9 @@ func (s *InternalGeniusProvider) FindSongInfosByArtistID(artistID int) ([]Genius
 	go func() {
 		wg.Wait()
 		close(artistSongRespCh)
-		close(errCh)
 	}()
+
+	println("continue")
 
 	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
 	for song := range artistSongRespCh {
@@ -370,7 +404,10 @@ func (s *InternalGeniusProvider) FindSongInfosByArtistID(artistID int) ([]Genius
 }
 
 func (s *InternalGeniusProvider) getLyrics(songInfo GeniusSongInfo) (string, error) {
-	return s.getLyricsFromPath(songInfo.LyricsPath)
+	if songInfo.LyricsState == LyricsComplete {
+		return s.getLyricsFromPath(songInfo.LyricsPath)
+	}
+	return "", lyricsUncompleted
 }
 
 func (s *InternalGeniusProvider) getLyricsFromPath(lyricsPath string) (string, error) {

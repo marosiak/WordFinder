@@ -14,6 +14,7 @@ type Config struct {
 	UserAgents           []string      `split_words:"true"`
 	RequestTimeout       time.Duration `split_words:"true" default:"5s"`
 	MaxChannelBufferSize int           `split_words:"true" default:"30"`
+	MaxPagesForArtist    int           `split_words:"true" default:"100"`
 }
 
 func NewConfig() (Config, error) {

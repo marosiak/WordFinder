@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"errors"
 	"github.com/marosiak/WordFinder/config"
 	log "github.com/sirupsen/logrus"
 	"strings"
@@ -19,6 +18,11 @@ type Song struct {
 	Lyrics string
 }
 
+type Artist struct {
+	GeniusID int
+	Name     string
+}
+
 func (s *SongInfo) CountOccurances(word string) int {
 	return strings.Count(s.Title, word)
 }
@@ -29,6 +33,7 @@ type LyricsService interface {
 	GetSongByName(name string) (Song, error)
 	GetSongFromInfo(songInfo SongInfo) (Song, error)
 
+	GetArtist(artistName string) (Artist, error)
 	GetSongsInfosByArtist(artistName string) ([]SongInfo, error)
 	GetSongsByArtist(artistName string) ([]Song, error)
 	GetSongsFromSongInfos(songInfos []SongInfo) ([]Song, error)
@@ -105,13 +110,25 @@ func (s *InternalLyricsService) GetSongFromInfo(songInfo SongInfo) (Song, error)
 	}, nil
 }
 
-func (s *InternalLyricsService) GetSongsInfosByArtist(artistName string) ([]SongInfo, error) {
-	primaryArtistID, err := s.findArtistID(artistName)
+func (s *InternalLyricsService) GetArtist(artistName string) (Artist, error) {
+	geniusArtist, err := s.geniusProvider.GetArtist(artistName)
 	if err != nil {
-		s.logger.WithError(err).Error("GetSongsInfosByArtist find artist ID for ", artistName)
+		return Artist{}, err
 	}
 
-	foundSongs, err := s.geniusProvider.FindSongInfosByArtistID(primaryArtistID)
+	return Artist{
+		GeniusID: geniusArtist.ID,
+		Name:     geniusArtist.Name,
+	}, nil
+}
+
+func (s *InternalLyricsService) GetSongsInfosByArtist(artistName string) ([]SongInfo, error) {
+	artist, err := s.GetArtist(artistName)
+	if err != nil {
+		return []SongInfo{}, err
+	}
+
+	foundSongs, err := s.geniusProvider.GetSongInfosByArtistID(artist.GeniusID)
 	if err != nil {
 		return []SongInfo{}, err
 	}
@@ -155,12 +172,12 @@ func (s *InternalLyricsService) GetSongsFromSongInfos(songInfos []SongInfo) ([]S
 }
 
 func (s *InternalLyricsService) GetSongsByArtist(artistName string) ([]Song, error) {
-	artistID, err := s.findArtistID(artistName)
+	artist, err := s.geniusProvider.GetArtist(artistName)
 	if err != nil {
 		return []Song{}, err
 	}
 
-	geniusSongs, err := s.geniusProvider.FindSongsByArtistID(artistID)
+	geniusSongs, err := s.geniusProvider.GetSongsByArtistID(artist.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,20 +194,4 @@ func (s *InternalLyricsService) GetSongsByArtist(artistName string) ([]Song, err
 		})
 	}
 	return songs, nil
-}
-
-func (s *InternalLyricsService) findArtistID(desiredArtistName string) (int, error) {
-	searchResults, err := s.geniusProvider.Search(desiredArtistName)
-	if err != nil {
-		return 0, err
-	}
-
-	desiredArtistName = strings.ToLower(desiredArtistName)
-	for _, result := range searchResults {
-		primaryArtistName := strings.ToLower(result.PrimaryArtist.Name)
-		if strings.Contains(primaryArtistName, desiredArtistName) {
-			return result.PrimaryArtist.ID, nil
-		}
-	}
-	return 0, errors.New("artist not found")
 }
