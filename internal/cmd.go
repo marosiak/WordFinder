@@ -2,11 +2,12 @@ package internal
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"github.com/marosiak/WordFinder/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"os"
-	"sort"
 	"strings"
 )
 
@@ -26,11 +27,9 @@ func NewCmd(cfg *config.Config, lyricsService LyricsService, logger *log.Entry) 
 	return &InternalCmd{logger: logger, lyricsService: lyricsService, cfg: cfg}
 }
 
-func getKeywordsFromFile(ctx *cli.Context) (output []string) {
-	keywordsFile := ctx.String("keywords-file")
-	f, err := os.OpenFile(keywordsFile, os.O_RDONLY, os.ModePerm)
+func getKeywordsFromFile(fileName string) (output []string) {
+	f, err := os.OpenFile(fileName, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		log.Fatalf("open file error: %v", err)
 		return
 	}
 	defer f.Close()
@@ -38,7 +37,6 @@ func getKeywordsFromFile(ctx *cli.Context) (output []string) {
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		text := sc.Text() // GET the line string
-
 		splittedSpace := strings.Split(text, " ")
 		for _, word := range splittedSpace {
 			splittedComma := strings.Split(word, ",")
@@ -47,7 +45,6 @@ func getKeywordsFromFile(ctx *cli.Context) (output []string) {
 					output = append(output, strings.ToLower(word))
 				}
 			}
-
 		}
 	}
 	if err := sc.Err(); err != nil {
@@ -57,22 +54,48 @@ func getKeywordsFromFile(ctx *cli.Context) (output []string) {
 	return output
 }
 
+var CannotOpenFileError = errors.New("Cannot open \"%s\" file\n")
+
 func getKeywords(ctx *cli.Context) (output []string) {
 	keywords := ctx.StringSlice("keywords")
 	for _, keyword := range keywords {
 		splitted := strings.Split(keyword, ",")
-		if len(splitted) > 1 {
-			for _, v := range splitted {
-				output = append(output, v)
-			}
-		} else {
-			output = append(output, keyword)
+		for _, v := range splitted {
+			output = append(output, v)
 		}
 	}
-	keywordsFromFile := getKeywordsFromFile(ctx)
-	keywords = append(keywords, keywordsFromFile...)
-	keywords = append(keywords, ctx.String("keyword"))
-	return keywords
+
+	keywordsFiles := ctx.StringSlice("keywords-files")
+	keywordsFromFiles := []string{}
+	for _, keyword := range keywordsFiles {
+		splitted := strings.Split(keyword, ",")
+		for _, fileName := range splitted {
+			keywordsFromFiles = append(keywordsFromFiles, fileName)
+
+			kw := getKeywordsFromFile(fileName)
+			if len(kw) == 0 {
+				fmt.Printf(CannotOpenFileError.Error(), fileName)
+				continue
+			}
+			output = append(output, kw...)
+		}
+	}
+
+	filePath := ctx.String("keywords-file")
+	if filePath != "" {
+		kw := getKeywordsFromFile(filePath)
+		if len(kw) == 0 {
+			fmt.Printf(CannotOpenFileError.Error(), filePath)
+		}
+		output = append(output, kw...)
+	}
+
+	keyword := ctx.String("keyword")
+	if keyword != "" {
+		output = append(output, keyword)
+	}
+
+	return output
 }
 
 func (s *InternalCmd) GetSongsByArtistWithoutBannedWords(ctx *cli.Context) error {
@@ -81,12 +104,9 @@ func (s *InternalCmd) GetSongsByArtistWithoutBannedWords(ctx *cli.Context) error
 
 	songs, err := s.lyricsService.GetSongsByArtist(query)
 	if err != nil {
+		fmt.Printf("Error while getting songs list: %v", err)
 		return err
 	}
-
-	sort.Slice(songs, func(i, j int) bool {
-		return songs[i].Info.Title < songs[j].Info.Title
-	})
 
 	songToWordsMap := make(map[Song]WordsOccurrences)
 	for _, song := range songs {
@@ -108,7 +128,7 @@ func (s *InternalCmd) GetSongsByArtistWithoutBannedWords(ctx *cli.Context) error
 	}
 
 	for k, _ := range songsWithoutBannedWords {
-		println(k)
+		fmt.Println(k)
 	}
 	return nil
 }

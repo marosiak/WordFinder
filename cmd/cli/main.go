@@ -49,8 +49,14 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:     "keywords-file",
-			Usage:    "--keywords-file=\"keywords.txt\" the keywords should be splitted by space or \",\"",
+			Usage:    "--keywords-file=\"keywords.txt\"",
 			Aliases:  []string{"kwds-f"},
+			Required: false,
+		},
+		&cli.StringSliceFlag{
+			Name:     "keywords-files",
+			Usage:    "--keywords-files=\"swears.txt,drugs.txt\" ",
+			Aliases:  []string{"kwds-fs"},
 			Required: false,
 		},
 	}
@@ -60,7 +66,7 @@ func main() {
 		Usage: "genius-cli --help",
 		Commands: []*cli.Command{
 			{
-				Name:   "songs-by-artist-without-banned-words", // damnn.. I have to work it around
+				Name:   "songs-by-artist-without-banned-words", // damnn.. I have to find better name
 				Usage:  "Will return list of songs which does not contains any of --keywords or --keyword",
 				Action: cmd.GetSongsByArtistWithoutBannedWords,
 				Flags:  flags,

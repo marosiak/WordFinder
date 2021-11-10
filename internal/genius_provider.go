@@ -374,10 +374,6 @@ func (s *InternalGeniusProvider) GetSongInfosByArtistID(artistID int) ([]GeniusS
 				return
 			}
 
-			//if len(artistSongsResp.Response.Songs) == 0 {
-			//	log.Printf("Asking for non existing ?page=%d", i)
-			//}
-
 			artistSongRespCh <- artistSongsResp
 		}()
 	}

@@ -20,6 +20,6 @@ type Config struct {
 func NewConfig() (Config, error) {
 	var cfg Config
 	err := envconfig.Process("", &cfg)
-	// TODO: Sprawdzanie, czy HOST kończy się na "/"
+
 	return cfg, err
 }
