@@ -15,7 +15,7 @@ type SongInfo struct {
 
 type Song struct {
 	Info   SongInfo
-	Lyrics string
+	Lyrics Lyrics
 }
 
 type Artist struct {

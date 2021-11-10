@@ -39,7 +39,7 @@ type GeniusSongInfo struct {
 }
 
 type GeniusSong struct {
-	Lyrics string
+	Lyrics Lyrics
 	Info   GeniusSongInfo
 }
 
@@ -387,8 +387,6 @@ func (s *InternalGeniusProvider) GetSongInfosByArtistID(artistID int) ([]GeniusS
 		close(artistSongRespCh)
 	}()
 
-	println("continue")
-
 	// The additional validation is needed, because sometimes the artist is on "feat" and the lyrics from feats aren't supported yet
 	for song := range artistSongRespCh {
 		for _, song := range song.Response.Songs {
@@ -403,14 +401,14 @@ func (s *InternalGeniusProvider) GetSongInfosByArtistID(artistID int) ([]GeniusS
 	return songs, nil
 }
 
-func (s *InternalGeniusProvider) getLyrics(songInfo GeniusSongInfo) (string, error) {
+func (s *InternalGeniusProvider) getLyrics(songInfo GeniusSongInfo) (Lyrics, error) {
 	if songInfo.LyricsState == LyricsComplete {
 		return s.getLyricsFromPath(songInfo.LyricsPath)
 	}
 	return "", lyricsUncompleted
 }
 
-func (s *InternalGeniusProvider) getLyricsFromPath(lyricsPath string) (string, error) {
+func (s *InternalGeniusProvider) getLyricsFromPath(lyricsPath string) (Lyrics, error) {
 	urlStr := fmt.Sprintf("%s%s", s.cfg.GeniusHost, lyricsPath)
 	req, err := utils.CreatePathRequest(s.cfg, urlStr, "GET")
 	if err != nil {
@@ -472,5 +470,5 @@ REQUEST:
 
 		return "", emptyLyricsErr
 	}
-	return lyrics, err
+	return Lyrics(lyrics), err
 }
