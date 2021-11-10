@@ -93,20 +93,21 @@ func (s *InternalCmd) GetSongsByArtistWithoutBannedWords(ctx *cli.Context) error
 		songToWordsMap[song] = song.Lyrics.FindWords()
 	}
 
-	magicContainer := make(map[string]struct{})
-
-	for _, keyword := range keywords {
-		keyword = strings.ReplaceAll(keyword, " ", "")
-		for song, occurrence := range songToWordsMap {
-			if occurrence[keyword] >= 1 {
-
-			} else {
-				magicContainer[song.Info.Title] = struct{}{}
+	songsWithoutBannedWords := make(map[string]struct{})
+	for song, occurrence := range songToWordsMap {
+		keywordExists := false
+		for _, keyword := range keywords {
+			keyword = strings.ReplaceAll(keyword, " ", "")
+			if occurrence[keyword] > 0 {
+				keywordExists = true
 			}
+		}
+		if keywordExists == false {
+			songsWithoutBannedWords[song.Info.Title] = struct{}{}
 		}
 	}
 
-	for k, _ := range magicContainer {
+	for k, _ := range songsWithoutBannedWords {
 		println(k)
 	}
 	return nil
