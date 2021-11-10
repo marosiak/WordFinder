@@ -64,7 +64,7 @@ GLOBAL OPTIONS:
 **yes, this name sucks, give me better one pls**.
 This command will output list of songs without provided words 
 
-####Simplest Usage 
+#### Simplest Usage 
 ```bash
 genius-cli songs-by-artist-without-banned-words --keywords-file="swears.txt"
 ```
