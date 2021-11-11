@@ -12,11 +12,15 @@ import (
 
 var anyError = errors.New("error")
 
-func TestGetArtistSuccess(t *testing.T) {
+func getLyricsServiceAndGeniusProvider() (*mocks.GeniusProvider, *internal.InternalLyricsService) {
 	cfg := GetConfig()
 
 	geniusProvider := &mocks.GeniusProvider{}
-	lyricsService := internal.NewLyricsService(cfg, geniusProvider, log.NewEntry(log.New()))
+	return geniusProvider, internal.NewLyricsService(cfg, geniusProvider, log.NewEntry(log.New()))
+}
+
+func TestGetArtistSuccess(t *testing.T) {
+	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
 
 	geniusProvider.On("GetArtist", "the_artist").Return(
 		internal.GeniusArtist{
@@ -34,10 +38,7 @@ func TestGetArtistSuccess(t *testing.T) {
 }
 
 func TestGetArtistError(t *testing.T) {
-	cfg := GetConfig()
-
-	geniusProvider := &mocks.GeniusProvider{}
-	lyricsService := internal.NewLyricsService(cfg, geniusProvider, log.NewEntry(log.New()))
+	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
 
 	geniusProvider.On("GetArtist", "the_artist").Return(
 		internal.GeniusArtist{}, anyError,
@@ -48,10 +49,7 @@ func TestGetArtistError(t *testing.T) {
 }
 
 func TestGetSongFromInfoSuccess(t *testing.T) {
-	cfg := GetConfig()
-
-	geniusProvider := &mocks.GeniusProvider{}
-	lyricsService := internal.NewLyricsService(cfg, geniusProvider, log.NewEntry(log.New()))
+	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
 
 	geniusProvider.On("GetSongByID", 1).Return(
 		internal.GeniusSong{
@@ -82,10 +80,7 @@ func TestGetSongFromInfoSuccess(t *testing.T) {
 }
 
 func TestGetSongFromInfoError(t *testing.T) {
-	cfg := GetConfig()
-
-	geniusProvider := &mocks.GeniusProvider{}
-	lyricsService := internal.NewLyricsService(cfg, geniusProvider, log.NewEntry(log.New()))
+	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
 
 	geniusProvider.On("GetSongByID", 1).Return(
 		internal.GeniusSong{}, anyError,
