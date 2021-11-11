@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"sort"
 	"strings"
 )
 
@@ -19,23 +18,6 @@ func (l Lyrics) Raw() string {
 }
 
 type WordsOccurrences map[string]int
-
-type KeyValue struct {
-	Key   string
-	Value int
-}
-
-func (w WordsOccurrences) SortedKeyValueList() []KeyValue {
-	var ss []KeyValue
-	for k, v := range w {
-		ss = append(ss, KeyValue{k, v})
-	}
-
-	sort.Slice(ss, func(i, j int) bool {
-		return ss[i].Value > ss[j].Value
-	})
-	return ss
-}
 
 func (w WordsOccurrences) Append(theMap map[string]int) WordsOccurrences {
 	output := w
