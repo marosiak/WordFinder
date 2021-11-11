@@ -2,8 +2,8 @@ package tests
 
 import (
 	"errors"
-	"github.com/marosiak/WordFinder/Mocks"
 	"github.com/marosiak/WordFinder/internal"
+	"github.com/marosiak/WordFinder/mocks"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
