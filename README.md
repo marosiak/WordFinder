@@ -15,7 +15,7 @@ This repository has been created to make analysis about lyrics of songs, the goa
 
 ## 🔨 Build & Run
 ```bash
-./build.sh
+make build
 ```
 In order to access Genius you will need `.env` file with credentials
 

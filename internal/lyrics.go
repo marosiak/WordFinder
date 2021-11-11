@@ -43,7 +43,6 @@ func (w WordsOccurrences) Append(theMap map[string]int) WordsOccurrences {
 		occ, ok := output[k]
 		if ok == true {
 			v = occ + v
-			println(v)
 		}
 
 		output[k] = v

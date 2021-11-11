@@ -1,17 +1,18 @@
-package internal
+package tests
 
 import (
+	"github.com/marosiak/WordFinder/internal"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestAppendLyrics(t *testing.T) {
-	firstWordsOccMap := WordsOccurrences{
+	firstWordsOccMap := internal.WordsOccurrences{
 		"word1": 1,
 		"word2": 5,
 	}
 
-	secondWordsOccMap := WordsOccurrences{
+	secondWordsOccMap := internal.WordsOccurrences{
 		"word1": 1,
 		"word3": 99,
 	}
@@ -24,7 +25,7 @@ func TestAppendLyrics(t *testing.T) {
 }
 
 func TestFindLyricsWords(t *testing.T) {
-	lyrics := Lyrics(
+	lyrics := internal.Lyrics(
 		"Lorem ipsum dolor sit.\n" +
 			"lorem ipson, polon sit. lorem",
 	)
