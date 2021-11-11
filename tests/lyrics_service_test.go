@@ -146,5 +146,17 @@ func TestGetSongByNameSuccess(t *testing.T) {
 
 	song, err := lyricsService.GetSongByName("the_song")
 	assert.NoError(t, err)
-	assert.Equal(t, "the lyrics", song.Info.Title)
+	assert.Equal(t, "the_song", song.Info.Title)
+	assert.Equal(t, "the lyrics", song.Lyrics)
+}
+
+func TestGetSongByNameError(t *testing.T) {
+	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
+
+	geniusProvider.On("GetSongByName", "the_song").Return(
+		internal.GeniusSong{}, anyError,
+	)
+
+	_, err := lyricsService.GetSongByName("the_song")
+	assert.Error(t, anyError, err)
 }
