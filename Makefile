@@ -3,11 +3,9 @@ ifeq (,$(wildcard bin/mockery))
 	mkdir bin
 	mkdir tmp
 ifeq ($(shell uname -s),Linux)
-	echo linux
 	wget -O "tmp/mockery.tar.gz" "https://github.com/vektra/mockery/releases/download/v2.9.4/mockery_2.9.4_Linux_x86_64.tar.gz"
 endif
 ifeq ($(shell uname -s),Darwin)
-	echo darwin
 	wget -O "tmp/mockery.tar.gz" "https://github.com/vektra/mockery/releases/download/v2.9.4/mockery_2.9.4_Darwin_x86_64.tar.gz"
 endif
 	sudo tar -C tmp -xzf tmp/mockery.tar.gz
