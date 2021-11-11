@@ -66,7 +66,7 @@ type GeniusArtist struct {
 	Name    string `json:"name"`
 }
 
-type SearchResult struct {
+type GeniusSearchResult struct {
 	ID             int
 	ApiPath        string       `json:"api_path"`
 	FullTitle      string       `json:"full_title"`
@@ -78,7 +78,7 @@ type SearchResult struct {
 var _ GeniusProvider = &InternalGeniusProvider{}
 
 type GeniusProvider interface {
-	Search(query string) ([]SearchResult, error)
+	Search(query string) ([]GeniusSearchResult, error)
 	GetSongInfoByID(id int) (GeniusSongInfo, error)
 	GetSongByID(id int) (GeniusSong, error)
 	GetSongsByIDs(id []int) ([]GeniusSong, error)
@@ -225,17 +225,17 @@ func (s *InternalGeniusProvider) GetSongInfoByID(id int) (GeniusSongInfo, error)
 	return songPayload.Response.Song, err
 }
 
-func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
+func (s *InternalGeniusProvider) Search(query string) ([]GeniusSearchResult, error) {
 	req, err := utils.CreateEndpointRequest(s.cfg, s.cfg.GeniusRapidApiHost, fmt.Sprintf("%s?q=%s", searchEndpoint, url.QueryEscape(query)), "GET")
 	if err != nil {
 		log.WithError(err).Error("creating url")
-		return []SearchResult{}, err
+		return []GeniusSearchResult{}, err
 	}
 
 	res, err := s.client.Do(&req)
 	if err != nil {
 		log.WithError(err).Error("creating http client")
-		return []SearchResult{}, err
+		return []GeniusSearchResult{}, err
 	}
 	defer res.Body.Close()
 
@@ -246,7 +246,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 
 	type hit struct {
 		Type         string
-		SearchResult SearchResult `json:"result"`
+		SearchResult GeniusSearchResult `json:"result"`
 	}
 
 	type searchResultResponse struct {
@@ -258,7 +258,7 @@ func (s *InternalGeniusProvider) Search(query string) ([]SearchResult, error) {
 	searchResult := searchResultResponse{}
 	err = json.Unmarshal(by, &searchResult)
 
-	var results []SearchResult
+	var results []GeniusSearchResult
 	for _, hit := range searchResult.Response.Hits {
 		results = append(results, hit.SearchResult)
 	}

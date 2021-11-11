@@ -166,15 +166,15 @@ func (_m *GeniusProvider) GetSongsByIDs(id []int) ([]internal.GeniusSong, error)
 }
 
 // Search provides a mock function with given fields: query
-func (_m *GeniusProvider) Search(query string) ([]internal.SearchResult, error) {
+func (_m *GeniusProvider) Search(query string) ([]internal.GeniusSearchResult, error) {
 	ret := _m.Called(query)
 
-	var r0 []internal.SearchResult
-	if rf, ok := ret.Get(0).(func(string) []internal.SearchResult); ok {
+	var r0 []internal.GeniusSearchResult
+	if rf, ok := ret.Get(0).(func(string) []internal.GeniusSearchResult); ok {
 		r0 = rf(query)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]internal.SearchResult)
+			r0 = ret.Get(0).([]internal.GeniusSearchResult)
 		}
 	}
 
