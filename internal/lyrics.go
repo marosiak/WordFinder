@@ -38,7 +38,7 @@ func (l Lyrics) FindWords() WordsOccurrences {
 
 	output := make(map[string]int)
 	for _, word := range splitted {
-		if len(word) <= 2 {
+		if len(word) <= 2 { // Don't count it because it's too short
 			continue
 		}
 		word := strings.ToLower(word)
