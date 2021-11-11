@@ -11,13 +11,6 @@ require (
 )
 
 require (
-	github.com/andybalholm/cascadia v1.2.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/russross/blackfriday/v2 v2.0.1 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
-	github.com/stretchr/objx v0.1.1 // indirect
-	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
+	github.com/vektra/mockery/v2 v2.9.4 // indirect
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 )
