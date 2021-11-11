@@ -25,14 +25,14 @@ touch .env
 
 Paste template:
 ```bash
-USER_AGENTS="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-GENIUS_RAPID_API_HOST=genius.p.rapidapi.com
-GENIUS_RAPID_API_KEY=[OBTAIN IT FROM RAPIDAPI.COM]
-GENIUS_HOST=genius.com
-GENIUS_API_HOST=genius.com/api
+export USER_AGENTS="Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36,Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
+export GENIUS_RAPID_API_HOST=genius.p.rapidapi.com
+export GENIUS_RAPID_API_KEY=[OBTAIN IT FROM RAPIDAPI.COM]
+export GENIUS_HOST=genius.com
+export GENIUS_API_HOST=genius.com/api
 
-REQUEST_TIMEOUT=10s
-MAX_CHANNEL_BUFFER_SIZE=30
+export REQUEST_TIMEOUT=10s
+export MAX_CHANNEL_BUFFER_SIZE=30
 ```
 
 in place of <span style="color:orange">[OBTAIN IT FROM RAPIDAPI.COM]</span> put api token from https://rapidapi.com/brianiswu/api/genius/
