@@ -10,6 +10,7 @@ This repository has been created to make analysis about lyrics of songs, the goa
 - ❌ Find occurrence of specific words and calculate in which songs the word were most used. 
 
 ## 🚀 Future plans
+- HTTP API
 - Caching in PostgresSQL and / or Redis
 - Creating API for clients so it will be hosted
 
