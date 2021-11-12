@@ -27,7 +27,7 @@ func TestAppendLyrics(t *testing.T) {
 func TestFindLyricsWords(t *testing.T) {
 	lyrics := internal.Lyrics(
 		"Lorem ipsum dolor sit.\n" +
-			"lorem ipson, polon sit. lorem",
+			"lorem ipson, polon sit. lorem is",
 	)
 
 	wordsMap := lyrics.FindWords()
