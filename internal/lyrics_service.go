@@ -3,7 +3,6 @@ package internal
 import (
 	"github.com/marosiak/WordFinder/config"
 	log "github.com/sirupsen/logrus"
-	"strings"
 )
 
 type SongInfo struct {
@@ -21,10 +20,6 @@ type Song struct {
 type Artist struct {
 	GeniusID int
 	Name     string
-}
-
-func (s *SongInfo) CountOccurances(word string) int {
-	return strings.Count(s.Title, word)
 }
 
 type LyricsService interface {
