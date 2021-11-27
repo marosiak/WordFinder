@@ -8,7 +8,7 @@ import (
 
 type Lyrics string
 
-var MarksChars = []string{",", ".", "!", "?"}
+var MarksChars = []string{",", ".", "!", "?", " "}
 var BannedChars = []string{"()", "[]", "{}"}
 
 func replaceEach(list []string, s string, new string) string {
@@ -23,8 +23,7 @@ func removeParentheses(s string) string {
 }
 
 func (l Lyrics) Normalised() string {
-	lyrics := replaceEach(MarksChars, string(l), "") // TODO: Zmienić MarksChars na []string i wtedy dodać tam 4/MSP
-	lyrics = strings.ReplaceAll(lyrics, " ", " ")    // No idea why it appears in lyrics, but I'll leave it there for a sec..
+	lyrics := replaceEach(MarksChars, string(l), "")
 
 	lyrics = removeParentheses(lyrics)
 
