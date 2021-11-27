@@ -55,8 +55,8 @@ in place of <span style="color:orange">[OBTAIN IT FROM RAPIDAPI.COM]</span> put 
 The basic response struct:
 ```json
 {
-  data: null,
-  error: null,
+  "data": null,
+  "error": null,
 }
 ```
 ^ ps. only one of these values may be equal to `null`
