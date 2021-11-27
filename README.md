@@ -53,7 +53,7 @@ in place of <span style="color:orange">[OBTAIN IT FROM RAPIDAPI.COM]</span> put 
 
 ## 🪧 Usage of API
 The basic response struct:
-```json
+```json5
 {
   "data": null,
   "error": null,
@@ -63,7 +63,7 @@ The basic response struct:
 
 ### GET https://localhost:8080/artists/:the_artist_name/songs
 
-```json
+```json5
 {
   "data": {
     "songs": [
@@ -83,7 +83,7 @@ The basic response struct:
 
 ### GET https://localhost:8080/artists/:the_artist_name/songs/words
 `word_count` contains all words used in lyrics which are longer than 2 characters.
-```json
+```json5
 {
   "data": {
     "songs": [
@@ -120,7 +120,7 @@ This example shows how songs can be filtered out because of containing one of ba
 
 example url: `GET` https://localhost:8080/artists/eminem/songs/words?banned_words=d29yZCx3b3JkMix3b3JkMw
 Will return eminem songs without base64 encoded words in lyrics
-```json
+```json5
 {
   "data": {
     "songs": [
