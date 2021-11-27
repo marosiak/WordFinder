@@ -15,6 +15,7 @@ type Config struct {
 	RequestTimeout       time.Duration `split_words:"true" default:"5s"`
 	MaxChannelBufferSize int           `split_words:"true" default:"30"`
 	MaxPagesForArtist    int           `split_words:"true" default:"100"`
+	ServerPort           int           `split_words:"true" default:"8080"`
 }
 
 func NewConfig() (Config, error) {

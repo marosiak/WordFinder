@@ -26,12 +26,51 @@ func TestAppendLyrics(t *testing.T) {
 
 func TestFindLyricsWords(t *testing.T) {
 	lyrics := internal.Lyrics(
-		"Lorem ipsum dolor sit.\n" +
-			"lorem ipson, polon sit. lorem is",
+		"aaa bbb\nbbb",
 	)
 
 	wordsMap := lyrics.FindWords()
-	assert.Equal(t, wordsMap["lorem"], 3)
-	assert.Equal(t, wordsMap["sit"], 2)
-	assert.Equal(t, wordsMap["ipsum"], 1)
+	assert.Equal(t, 1, wordsMap["aaa"])
+	assert.Equal(t, 2, wordsMap["bbb"])
+}
+
+func TestFindLyricsWordsSpecial(t *testing.T) {
+	lyrics := internal.Lyrics(
+		"[test \"test (test)\"] aaa bbb bbb",
+	)
+	wordsMap := lyrics.FindWords()
+	assert.Equal(t, 1, wordsMap["aaa"])
+	assert.Equal(t, 2, wordsMap["bbb"])
+	assert.Equal(t, 0, wordsMap["test"])
+}
+
+func TestFindLyricsWordsSpecialNoSpace(t *testing.T) {
+	lyrics := internal.Lyrics(
+		"[test \"test (test)\"]aaa bbb bbb",
+	)
+
+	wordsMap := lyrics.FindWords()
+	assert.Equal(t, 1, wordsMap["aaa"])
+	assert.Equal(t, 2, wordsMap["bbb"])
+	assert.Equal(t, 0, wordsMap["test"])
+}
+
+func TestFindLyricsWordsSpecialEnter(t *testing.T) {
+	lyrics := internal.Lyrics(
+		"[test \"test (test)\"]\naaa bbb (test) [test] bbb",
+	)
+
+	wordsMap := lyrics.FindWords()
+	assert.Equal(t, 1, wordsMap["aaa"])
+	assert.Equal(t, 2, wordsMap["bbb"])
+	assert.Equal(t, 0, wordsMap["test"])
+}
+
+func TestFindLyricsWordsUpperCaseSplit(t *testing.T) {
+	lyrics := internal.Lyrics(
+		"test testTest", // there should be 3 "test" words
+	)
+
+	wordsMap := lyrics.FindWords()
+	assert.Equal(t, 3, wordsMap["test"])
 }

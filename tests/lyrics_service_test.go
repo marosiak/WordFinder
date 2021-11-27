@@ -56,9 +56,9 @@ func TestGetSongFromInfoSuccess(t *testing.T) {
 		internal.GeniusSong{
 			Lyrics: "the lyrics are here",
 			Info: internal.GeniusSongInfo{
-				ID:         1,
-				LyricsPath: "path",
-				FullTitle:  "title",
+				ID:        1,
+				PagePath:  "path",
+				FullTitle: "title",
 				PrimaryArtist: internal.GeniusArtist{
 					ID:      2,
 					ApiPath: "path2",
@@ -70,10 +70,10 @@ func TestGetSongFromInfoSuccess(t *testing.T) {
 	)
 
 	artist, err := lyricsService.GetSongFromInfo(internal.SongInfo{
-		AuthorName:     "artist",
-		Title:          "title",
-		LyricsEndpoint: "path",
-		GeniusID:       1,
+		AuthorName:   "artist",
+		Title:        "title",
+		PageEndpoint: "path",
+		GeniusID:     1,
 	})
 
 	assert.NoError(t, err)
@@ -88,10 +88,10 @@ func TestGetSongFromInfoError(t *testing.T) {
 	)
 
 	_, err := lyricsService.GetSongFromInfo(internal.SongInfo{
-		AuthorName:     "artist",
-		Title:          "title",
-		LyricsEndpoint: "path",
-		GeniusID:       1,
+		AuthorName:   "artist",
+		Title:        "title",
+		PageEndpoint: "path",
+		GeniusID:     1,
 	})
 
 	assert.Error(t, err, anyError)
@@ -168,7 +168,7 @@ func TestGetSongInfoByIDSuccess(t *testing.T) {
 	geniusProvider.On("GetSongInfoByID", 1).Return(
 		internal.GeniusSongInfo{
 			ID:            1,
-			LyricsPath:    "lp",
+			PagePath:      "lp",
 			FullTitle:     "full_tittle",
 			PrimaryArtist: internal.GeniusArtist{},
 			LyricsState:   "ls",
@@ -282,15 +282,15 @@ func TestGetSongsFromSongInfosSuccess(t *testing.T) {
 	assert.Equal(t, 2, len(songs))
 }
 
-func TestGetSongsFromSongInfosError(t *testing.T) {
-	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
-	geniusProvider.On("GetSongsByIDs", mock.Anything).Return(
-		[]internal.GeniusSong{}, anyError,
-	)
-
-	_, err := lyricsService.GetSongsFromSongInfos([]internal.SongInfo{})
-	assert.Error(t, err, anyError)
-}
+//func TestGetSongsFromSongInfosError(t *testing.T) {
+//	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()
+//	geniusProvider.On("GetSongsByIDs", mock.Anything).Return(
+//		[]internal.GeniusSong{}, anyError,
+//	)
+//
+//	_, err := lyricsService.GetSongsFromSongInfos([]internal.SongInfo{})
+//	assert.Error(t, err, anyError)
+//}
 
 func TestGetSongsByArtistSuccess(t *testing.T) {
 	geniusProvider, lyricsService := getLyricsServiceAndGeniusProvider()

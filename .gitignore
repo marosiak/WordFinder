@@ -8,3 +8,4 @@ genius-cli
 mockery
 
 bin/
+banned_words/
