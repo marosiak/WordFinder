@@ -12,6 +12,7 @@ This repository has been created to make analysis about lyrics of songs, the goa
 - ❌ Database
 - ❌ Better way of managing banned words sets (There will be endpoint for registering keywords sets, then it will be accessible by id as filter)
 ## 🚀 Future plans
+- Swagger
 - Make better errors logging - including sentry
 - Caching in PostgresSQL and / or Redis
 - Create API Clients (frontend or cli-client)
