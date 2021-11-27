@@ -1,4 +1,4 @@
-package response
+package api
 
 type ErrorResponse struct {
 	Name       string

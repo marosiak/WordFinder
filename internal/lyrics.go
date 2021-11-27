@@ -82,7 +82,7 @@ func (w WordsOccurrences) ContainsOneOfWords(words []Word) bool {
 }
 
 func (w WordsOccurrences) Append(theMap WordsOccurrences) WordsOccurrences {
-	output := make(WordsOccurrences)
+	output := w
 
 	for k, v := range theMap {
 		k = Word(replaceEach(BannedChars, string(k), ""))
