@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/marosiak/WordFinder/api"
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
 	"github.com/marosiak/WordFinder/utils"
@@ -27,7 +28,7 @@ func main() {
 	geniusProvider := internal.NewGeniusProvider(utils.CreateHttpClient(&cfg), &cfg, logger)
 	lyricsService := internal.NewLyricsService(&cfg, geniusProvider, logger)
 
-	geniusAPI := internal.NewGeniusAPI(&cfg, lyricsService, logger)
+	geniusAPI := api.NewGeniusAPI(&cfg, lyricsService, logger)
 
 	r := fasthttprouter.New()
 

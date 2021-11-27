@@ -1,10 +1,10 @@
-package internal
+package api
 
 import (
 	"encoding/base64"
 	"fmt"
 	"github.com/marosiak/WordFinder/config"
-	"github.com/marosiak/WordFinder/response"
+	"github.com/marosiak/WordFinder/internal"
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"strings"
@@ -16,19 +16,19 @@ type GeniusAPI interface {
 }
 
 type InternalGeniusAPI struct {
-	lyricsService LyricsService
+	lyricsService internal.LyricsService
 	cfg           *config.Config
 	logger        *log.Entry
 }
 
-func NewGeniusAPI(cfg *config.Config, lyricsService LyricsService, logger *log.Entry) *InternalGeniusAPI {
+func NewGeniusAPI(cfg *config.Config, lyricsService internal.LyricsService, logger *log.Entry) *InternalGeniusAPI {
 	return &InternalGeniusAPI{cfg: cfg, lyricsService: lyricsService, logger: logger}
 }
 
 type apiSong struct {
-	Title      string           `json:"title"`
-	URL        string           `json:"url"`
-	WordsCount WordsOccurrences `json:"words_count,omitempty"`
+	Title      string                    `json:"title"`
+	URL        string                    `json:"url"`
+	WordsCount internal.WordsOccurrences `json:"words_count,omitempty"`
 }
 
 func (s *InternalGeniusAPI) GetSongsByArtist(ctx *fasthttp.RequestCtx) {
@@ -41,7 +41,7 @@ func (s *InternalGeniusAPI) GetSongsByArtist(ctx *fasthttp.RequestCtx) {
 	songs, err := s.lyricsService.GetSongsInfosByArtist(artistName)
 	if err != nil {
 		s.logger.WithError(err).Error("error getting songs infos by artist")
-		response.WriteError(ctx, response.ErrorByName("internal_error"))
+		WriteError(ctx, ErrorByName("internal_error"))
 		return
 	}
 
@@ -52,24 +52,24 @@ func (s *InternalGeniusAPI) GetSongsByArtist(ctx *fasthttp.RequestCtx) {
 			URL:   fmt.Sprintf("https://%s%s", s.cfg.GeniusHost, song.PageEndpoint),
 		})
 	}
-	response.WriteJSON(ctx, 200, response.New{
+	WriteJSON(ctx, 200, New{
 		Data: resp,
 	})
 }
 
-type BannedWords []Word
+type BannedWords []internal.Word
 
 func (b BannedWords) Normalise() BannedWords {
 	var outputWords BannedWords
 	for _, bannedWord := range b {
 		for _, bannedChar := range "ĄĆĘŁŃÓŚŹŻ" {
-			outputWords = append(outputWords, Word(strings.ReplaceAll(string(bannedWord), string(bannedChar), "")))
-			outputWords = append(outputWords, Word(strings.ReplaceAll(string(bannedWord), strings.ToLower(string(bannedChar)), "")))
+			outputWords = append(outputWords, internal.Word(strings.ReplaceAll(string(bannedWord), string(bannedChar), "")))
+			outputWords = append(outputWords, internal.Word(strings.ReplaceAll(string(bannedWord), strings.ToLower(string(bannedChar)), "")))
 		}
 	}
 	return outputWords
 }
-func (b BannedWords) Contains(text Word) bool {
+func (b BannedWords) Contains(text internal.Word) bool {
 	for _, v := range b {
 		if v == text {
 			return true
@@ -81,7 +81,7 @@ func QueryStringList(ctx *fasthttp.RequestCtx, name string) BannedWords {
 	by, _ := base64.StdEncoding.DecodeString(string(ctx.QueryArgs().Peek(name)))
 	var bannedWords BannedWords
 	for _, word := range strings.Split(string(by), ",") {
-		bannedWords = append(bannedWords, Word(word))
+		bannedWords = append(bannedWords, internal.Word(word))
 	}
 	return bannedWords
 }
@@ -97,7 +97,7 @@ func (s *InternalGeniusAPI) GetSongsWithWordsByArtist(ctx *fasthttp.RequestCtx) 
 	songs, err := s.lyricsService.GetSongsByArtist(artistName)
 	if err != nil {
 		s.logger.WithError(err).Error("error getting songs infos by artist")
-		response.WriteError(ctx, response.ErrorByName("internal_error"))
+		WriteError(ctx, ErrorByName("internal_error"))
 		return
 	}
 
@@ -111,5 +111,5 @@ func (s *InternalGeniusAPI) GetSongsWithWordsByArtist(ctx *fasthttp.RequestCtx) 
 			})
 		}
 	}
-	response.WriteJSON(ctx, 200, response.New{Data: resp})
+	WriteJSON(ctx, 200, New{Data: resp})
 }
