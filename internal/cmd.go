@@ -118,7 +118,7 @@ func (s *InternalCmd) GetSongsByArtistWithoutBannedWords(ctx *cli.Context) error
 		keywordExists := false
 		for _, keyword := range keywords {
 			keyword = strings.ReplaceAll(keyword, " ", "")
-			if occurrence[keyword] > 0 {
+			if occurrence[Word(keyword)] > 0 {
 				keywordExists = true
 			}
 		}

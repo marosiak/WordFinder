@@ -1,27 +1,91 @@
 package internal
 
 import (
+	"regexp"
 	"strings"
+	"unicode"
 )
 
 type Lyrics string
 
-var SpecialChars = ",.!?"
+var MarksChars = []string{",", ".", "!", "?"}
+var BannedChars = []string{"()", "[]", "{}"}
 
-func (l Lyrics) Raw() string {
-	lyrics := string(l)
-	for _, specialChar := range SpecialChars {
-		lyrics = strings.ReplaceAll(lyrics, string(specialChar), "")
+func replaceEach(list []string, s string, new string) string {
+	for _, v := range list {
+		s = strings.ReplaceAll(s, v, new)
 	}
-	lyrics = strings.ReplaceAll(lyrics, "\n", " ")
-	return lyrics
+	return s
 }
 
-type WordsOccurrences map[string]int
+func removeParentheses(s string) string {
+	return regexp.MustCompile(`\[(.*?)\]|\((.*?)\)`).ReplaceAllString(s, "")
+}
 
-func (w WordsOccurrences) Append(theMap map[string]int) WordsOccurrences {
-	output := w
+func (l Lyrics) Normalised() string {
+	lyrics := replaceEach(MarksChars, string(l), "") // TODO: Zmienić MarksChars na []string i wtedy dodać tam 4/MSP
+	lyrics = strings.ReplaceAll(lyrics, " ", " ")    // No idea why it appears in lyrics, but I'll leave it there for a sec..
+
+	lyrics = removeParentheses(lyrics)
+
+	previousChar := " "
+	output := ""
+	for _, char := range lyrics {
+		if unicode.IsUpper(char) && previousChar != " " {
+			output = output + " " + string(char)
+			previousChar = string(char)
+			continue
+		}
+		output = output + string(char)
+		previousChar = string(char)
+	}
+
+	return output
+}
+
+type Word string
+
+func (w Word) TrimSpecials() Word {
+	outputWord := w
+
+	for _, bannedChar := range "ĄĆĘŁŃÓŚŹŻ" {
+		outputWord = Word(strings.ReplaceAll(string(outputWord), string(bannedChar), ""))
+		outputWord = Word(strings.ReplaceAll(string(outputWord), strings.ToLower(string(bannedChar)), ""))
+	}
+
+	return outputWord
+}
+
+type WordsOccurrences map[Word]int
+
+func (w WordsOccurrences) TrimSpecials() WordsOccurrences {
+	outputWordOccurrences := make(WordsOccurrences)
+
+	for word, occurances := range w {
+		outputWordOccurrences[word.TrimSpecials()] = occurances
+	}
+	return outputWordOccurrences
+}
+
+func (w WordsOccurrences) ContainsWord(word Word) bool {
+	return w[word] > 0
+}
+
+func (w WordsOccurrences) ContainsOneOfWords(words []Word) bool {
+	wordOccurrences := w.TrimSpecials()
+	for _, word := range words {
+		if wordOccurrences[word.TrimSpecials()] > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (w WordsOccurrences) Append(theMap WordsOccurrences) WordsOccurrences {
+	output := make(WordsOccurrences)
+
 	for k, v := range theMap {
+		k = Word(replaceEach(BannedChars, string(k), ""))
 		occ, ok := output[k]
 		if ok == true {
 			v = occ + v
@@ -32,16 +96,24 @@ func (w WordsOccurrences) Append(theMap map[string]int) WordsOccurrences {
 	return output
 }
 
-func (l Lyrics) FindWords() WordsOccurrences {
-	lyrics := l.Raw()
-	splitted := append(strings.Split(lyrics, " "))
+func splitBySeparators(s string, separators []string) []string {
+	for _, separator := range separators {
+		s = strings.ReplaceAll(s, separator, " ")
+	}
 
-	output := make(map[string]int)
-	for _, word := range splitted {
+	return strings.Split(s, " ")
+}
+
+func (l Lyrics) FindWords() WordsOccurrences {
+	lyrics := l.Normalised()
+
+	output := make(WordsOccurrences)
+	for _, word := range splitBySeparators(lyrics, []string{" ", "\n"}) {
 		if len(word) <= 2 { // Don't count it because it's too short
 			continue
 		}
-		word := strings.ToLower(word)
+		word := Word(strings.ToLower(word))
+
 		occ, ok := output[word]
 		if ok == true {
 			output[word] = occ + 1

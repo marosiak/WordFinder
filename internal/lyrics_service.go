@@ -6,10 +6,10 @@ import (
 )
 
 type SongInfo struct {
-	AuthorName     string
-	Title          string
-	LyricsEndpoint string
-	GeniusID       int
+	AuthorName   string
+	Title        string
+	PageEndpoint string
+	GeniusID     int
 }
 
 type Song struct {
@@ -27,6 +27,7 @@ type LyricsService interface {
 	GetSongInfoByID(id int) (SongInfo, error)
 	GetSongByName(name string) (Song, error)
 	GetSongFromInfo(songInfo SongInfo) (Song, error)
+	GetSongsFromInfos(songInfos []SongInfo) ([]Song, error)
 
 	GetArtist(artistName string) (Artist, error)
 	GetSongsInfosByArtist(artistName string) ([]SongInfo, error)
@@ -55,10 +56,10 @@ func (s *InternalLyricsService) GetSongInfoByName(songName string) (SongInfo, er
 	song := searchResults[0]
 
 	return SongInfo{
-		GeniusID:       song.ID,
-		AuthorName:     song.PrimaryArtist.Name,
-		Title:          song.FullTitle,
-		LyricsEndpoint: song.LyricsEndpoint,
+		GeniusID:     song.ID,
+		AuthorName:   song.PrimaryArtist.Name,
+		Title:        song.FullTitle,
+		PageEndpoint: song.LyricsEndpoint,
 	}, nil
 }
 
@@ -69,10 +70,10 @@ func (s *InternalLyricsService) GetSongInfoByID(id int) (SongInfo, error) {
 	}
 
 	return SongInfo{
-		GeniusID:       geniusSong.ID,
-		AuthorName:     geniusSong.PrimaryArtist.Name,
-		Title:          geniusSong.FullTitle,
-		LyricsEndpoint: geniusSong.LyricsPath,
+		GeniusID:     geniusSong.ID,
+		AuthorName:   geniusSong.PrimaryArtist.Name,
+		Title:        geniusSong.FullTitle,
+		PageEndpoint: geniusSong.PagePath,
 	}, nil
 }
 
@@ -85,10 +86,10 @@ func (s *InternalLyricsService) GetSongByName(songName string) (Song, error) {
 	return Song{
 		Lyrics: geniusSong.Lyrics,
 		Info: SongInfo{
-			GeniusID:       geniusSong.Info.ID,
-			AuthorName:     geniusSong.Info.PrimaryArtist.Name,
-			Title:          geniusSong.Info.FullTitle,
-			LyricsEndpoint: geniusSong.Info.LyricsPath,
+			GeniusID:     geniusSong.Info.ID,
+			AuthorName:   geniusSong.Info.PrimaryArtist.Name,
+			Title:        geniusSong.Info.FullTitle,
+			PageEndpoint: geniusSong.Info.PagePath,
 		},
 	}, nil
 }
@@ -105,12 +106,29 @@ func (s *InternalLyricsService) GetSongFromInfo(songInfo SongInfo) (Song, error)
 	}, nil
 }
 
+func (s *InternalLyricsService) GetSongsFromInfos(songInfos []SongInfo) ([]Song, error) {
+	var songs []Song
+
+	for _, songInfo := range songInfos {
+		song, err := s.geniusProvider.GetSongByID(songInfo.GeniusID)
+		if err != nil {
+			return []Song{}, err
+		}
+
+		songs = append(songs, Song{
+			Info:   songInfo,
+			Lyrics: song.Lyrics,
+		})
+	}
+
+	return songs, nil
+}
+
 func (s *InternalLyricsService) GetArtist(artistName string) (Artist, error) {
 	geniusArtist, err := s.geniusProvider.GetArtist(artistName)
 	if err != nil {
 		return Artist{}, err
 	}
-
 	return Artist{
 		GeniusID: geniusArtist.ID,
 		Name:     geniusArtist.Name,
@@ -131,9 +149,9 @@ func (s *InternalLyricsService) GetSongsInfosByArtist(artistName string) ([]Song
 	var songs []SongInfo
 	for _, song := range foundSongs {
 		songs = append(songs, SongInfo{
-			AuthorName:     song.PrimaryArtist.Name,
-			Title:          song.FullTitle,
-			LyricsEndpoint: song.LyricsPath,
+			AuthorName:   song.PrimaryArtist.Name,
+			Title:        song.FullTitle,
+			PageEndpoint: song.PagePath,
 		})
 	}
 
@@ -155,10 +173,10 @@ func (s *InternalLyricsService) GetSongsFromSongInfos(songInfos []SongInfo) ([]S
 	for _, geniusSong := range geniusSongs {
 		songs = append(songs, Song{
 			Info: SongInfo{
-				AuthorName:     geniusSong.Info.PrimaryArtist.Name,
-				Title:          geniusSong.Info.FullTitle,
-				LyricsEndpoint: geniusSong.Info.LyricsPath,
-				GeniusID:       geniusSong.Info.ID,
+				AuthorName:   geniusSong.Info.PrimaryArtist.Name,
+				Title:        geniusSong.Info.FullTitle,
+				PageEndpoint: geniusSong.Info.PagePath,
+				GeniusID:     geniusSong.Info.ID,
 			},
 			Lyrics: geniusSong.Lyrics,
 		})
@@ -181,9 +199,9 @@ func (s *InternalLyricsService) GetSongsByArtist(artistName string) ([]Song, err
 	for _, geniusSong := range geniusSongs {
 		songs = append(songs, Song{
 			Info: SongInfo{
-				AuthorName:     geniusSong.Info.PrimaryArtist.Name,
-				Title:          geniusSong.Info.FullTitle,
-				LyricsEndpoint: geniusSong.Info.LyricsPath,
+				AuthorName:   geniusSong.Info.PrimaryArtist.Name,
+				Title:        geniusSong.Info.FullTitle,
+				PageEndpoint: geniusSong.Info.PagePath,
 			},
 			Lyrics: geniusSong.Lyrics,
 		})

@@ -44,7 +44,6 @@ func CreateEndpointRequest(cfg *config.Config, host string, endpoint string, met
 
 func CreatePathRequest(cfg *config.Config, path string, method string) (http.Request, error) {
 	reqUrl, err := url.Parse(fmt.Sprintf("https://%s", path))
-
 	if cfg.Debug {
 		println(reqUrl.String())
 	}

@@ -32,7 +32,7 @@ const (
 
 type GeniusSongInfo struct {
 	ID            int
-	LyricsPath    string       `json:"path"`
+	PagePath      string       `json:"path"`
 	FullTitle     string       `json:"full_title"`
 	PrimaryArtist GeniusArtist `json:"primary_artist"`
 	LyricsState   LyricsState  `json:"lyrics_state"`
@@ -182,9 +182,9 @@ func (s *InternalGeniusProvider) GetSongByName(name string) (GeniusSong, error) 
 	return GeniusSong{
 		Lyrics: lyrics,
 		Info: GeniusSongInfo{
-			ID:         songResult.ID,
-			LyricsPath: songResult.LyricsEndpoint,
-			FullTitle:  songResult.FullTitle,
+			ID:        songResult.ID,
+			PagePath:  songResult.LyricsEndpoint,
+			FullTitle: songResult.FullTitle,
 			PrimaryArtist: GeniusArtist{
 				ID:      artist.ID,
 				ApiPath: artist.ApiPath,
@@ -399,7 +399,7 @@ func (s *InternalGeniusProvider) GetSongInfosByArtistID(artistID int) ([]GeniusS
 
 func (s *InternalGeniusProvider) getLyrics(songInfo GeniusSongInfo) (Lyrics, error) {
 	if songInfo.LyricsState == LyricsComplete {
-		return s.getLyricsFromPath(songInfo.LyricsPath)
+		return s.getLyricsFromPath(songInfo.PagePath)
 	}
 	return "", lyricsUncompleted
 }

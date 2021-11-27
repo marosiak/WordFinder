@@ -3,22 +3,33 @@
 ## 🏛️ Current State
 This repository has been created to make analysis about lyrics of songs, the goal is to provide tool which will be able to:
 
-- ✔️   Search <span style="color:green">**600 songs** from **Eminem</span> in <span style="color:green">3 seconds**</span>. on Ryzen 7 5800X and 500MB/s isp
+- ✔️   REST API for searching songs by artist and filtering out banned words
+- ✔️   Search <span style="color:green">**600 songs** from **Eminem</span> in <span style="color:green">9 seconds**</span>. on Ryzen 7 5800X and 500MB/s isp
 - ✔️   Find all songs by artist without banned words, could be used to find "family friendly" music without some kind of words
 - ✔️   Provide list of keywords in many ways in ex. these keywords are going to be used as arguments
   
 - ❌ Find occurrence of specific words and calculate in which songs the word were most used. 
-
+- ❌ Database
+- ❌ Better way of managing banned words sets (There will be endpoint for registering keywords sets, then it will be accessible by id as filter)
 ## 🚀 Future plans
-- HTTP API
+- Make better errors logging - including sentry
 - Caching in PostgresSQL and / or Redis
-- Creating API for clients so it will be hosted
+- Create API Clients (frontend or cli-client)
+- Performance monitoring using Grafana
 
 ## 🔨 Build & Run
+CLI version:
 ```bash
-make build
+make cli
 ```
-In order to access Genius you will need `.env` file with credentials
+
+API version:
+```bash
+make api
+```
+
+<br><br>
+<span style="color:red">**IMPORTANT**</span> For both of these binaries you will need to prepare `.env` file with credentials
 
 ```bash
 touch .env
@@ -34,12 +45,100 @@ export GENIUS_API_HOST=genius.com/api
 
 export REQUEST_TIMEOUT=10s
 export MAX_CHANNEL_BUFFER_SIZE=30
+export SERVER_PORT=8080
 ```
 
 in place of <span style="color:orange">[OBTAIN IT FROM RAPIDAPI.COM]</span> put api token from https://rapidapi.com/brianiswu/api/genius/
-   
+
+## 🪧 Usage of API
+The basic response struct:
+```json
+{
+  data: null,
+  error: null,
+}
+```
+^ ps. only one of these values may be equal to `null`
+
+### GET https://localhost:8080/artists/:the_artist_name/songs
+
+```json
+{
+  "data": {
+    "songs": [
+      {
+        "title": "Example",
+        "url": "https://genius.com/example"
+      },
+      {
+        "title": "Example1",
+        "url": "https://genius.com/example-1"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+### GET https://localhost:8080/artists/:the_artist_name/songs/words
+`word_count` contains all words used in lyrics which are longer than 2 characters.
+```json
+{
+  "data": {
+    "songs": [
+      {
+        "title": "Example",
+        "url": "https://genius.com/example",
+        "words_count": {
+          "abc": 2,
+          "cba": 1
+        }
+      },
+      {
+        "title": "Example1",
+        "url": "https://genius.com/example-1",
+        "words_count": {
+          "qwe": 2,
+          "rrr": 1,
+        }
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+
+### GET https://localhost:8080/artists/:the_artist_name/songs/words?banned_words=:base64
+This example shows how songs can be filtered out because of containing one of banned words
+
+`word_count` contains all words used in lyrics which are longer than 2 characters.
+
+`:base64` param in url is base64 string with banned words separated by commas, 
+
+
+example url: `GET` https://localhost:8080/artists/eminem/songs/words?banned_words=d29yZCx3b3JkMix3b3JkMw
+Will return eminem songs without base64 encoded words in lyrics
+```json
+{
+  "data": {
+    "songs": [
+      {
+        "title": "Example",
+        "url": "https://genius.com/example",
+        "words_count": {
+          "abc": 2,
+          "cba": 1
+        }
+      },
+    ]
+  },
+  "error": null
+}
+```
+
  💥 `./genius-cli` 💥
-## 🪧 Usage
+## 🪧 Usage of CLI
 
 This is generic --help view, you may use it with other commands for more details for ex.
 

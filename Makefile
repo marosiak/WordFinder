@@ -19,8 +19,11 @@ requirements: install_mockery
 mock: requirements
 	bin/mockery --recursive --name="^.*?Database$$|^.*?Provider|^.*?Service$$"
 
-build: mock
+cli: mock
 	go mod download && go build -o genius-cli cmd/cli/main.go && ./genius-cli
+
+api: mock
+	go mod download && go build -o api_server cmd/api/main.go && ./api_server
 
 test:
 	go test -v ./... -short
