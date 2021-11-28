@@ -61,8 +61,8 @@ The basic response struct:
 ```
 ^ ps. only one of these values may be equal to `null`
 
-### GET https://localhost:8080/artists/:the_artist_name/songs
-
+### GET https://localhost:8080/artists/:the_artist_name/songs?banned_words=:base64(example,example1)
+`:base64` param in url is base64 string with banned words separated by commas, example: `?banned_words=a3Vyd2EscGF0byxpbnRlbGlnZW5jamE`
 ```json5
 {
   "data": {
@@ -110,7 +110,7 @@ The basic response struct:
 ```
 
 
-### GET https://localhost:8080/artists/:the_artist_name/songs/words?banned_words=:base64
+### GET https://localhost:8080/artists/:the_artist_name/songs/words?banned_words=base64(example,example1)
 This example shows how songs can be filtered out because of containing one of banned words
 
 `word_count` contains all words used in lyrics which are longer than 2 characters.

@@ -35,26 +35,46 @@ func (s *InternalGeniusAPI) GetSongsByArtist(ctx *fasthttp.RequestCtx) {
 	type responseStruct struct {
 		Songs []apiSong `json:"songs"`
 	}
+	resp := responseStruct{}
 
 	artistName := ctx.Value("artist_name").(string)
+	bannedWords := QueryStringList(ctx, "banned_words")
 
-	songs, err := s.lyricsService.GetSongsInfosByArtist(artistName)
-	if err != nil {
-		s.logger.WithError(err).Error("error getting songs infos by artist")
-		WriteError(ctx, ErrorByName("internal_error"))
-		return
-	}
+	if bannedWords.IsEmpty() {
+		songs, err := s.lyricsService.GetSongsInfosByArtist(artistName)
+		if err != nil {
+			s.logger.WithError(err).Error("error getting songs infos by artist")
+			WriteError(ctx, ErrorByName("internal_error"))
+			return
+		}
 
-	resp := responseStruct{}
-	for _, song := range songs {
-		resp.Songs = append(resp.Songs, apiSong{
-			Title: song.Title,
-			URL:   fmt.Sprintf("https://%s%s", s.cfg.GeniusHost, song.PageEndpoint),
-		})
+		for _, song := range songs {
+			resp.Songs = append(resp.Songs, apiSong{
+				Title: song.Title,
+				URL:   fmt.Sprintf("https://%s%s", s.cfg.GeniusHost, song.PageEndpoint),
+			})
+		}
+	} else {
+		songs, err := s.lyricsService.GetSongsByArtist(artistName)
+		if err != nil {
+			s.logger.WithError(err).Error("error getting songs by artist")
+			WriteError(ctx, ErrorByName("internal_error"))
+			return
+		}
+
+		for _, song := range songs {
+			if song.Lyrics.FindWords().ContainsOneOfWords(bannedWords.Normalise()) == false {
+				resp.Songs = append(resp.Songs, apiSong{
+					Title: song.Info.Title,
+					URL:   fmt.Sprintf("https://%s%s", s.cfg.GeniusHost, song.Info.PageEndpoint),
+				})
+			}
+		}
 	}
 	WriteJSON(ctx, 200, New{
 		Data: resp,
 	})
+
 }
 
 type BannedWords []internal.Word
@@ -69,6 +89,10 @@ func (b BannedWords) Normalise() BannedWords {
 	}
 	return outputWords
 }
+func (b BannedWords) IsEmpty() bool {
+	return len(b) == 0
+}
+
 func (b BannedWords) Contains(text internal.Word) bool {
 	for _, v := range b {
 		if v == text {
