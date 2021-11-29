@@ -140,6 +140,29 @@ func (_m *LyricsService) GetSongsByArtist(artistName string) ([]internal.Song, e
 	return r0, r1
 }
 
+// GetSongsFromInfos provides a mock function with given fields: songInfos
+func (_m *LyricsService) GetSongsFromInfos(songInfos []internal.SongInfo) ([]internal.Song, error) {
+	ret := _m.Called(songInfos)
+
+	var r0 []internal.Song
+	if rf, ok := ret.Get(0).(func([]internal.SongInfo) []internal.Song); ok {
+		r0 = rf(songInfos)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]internal.Song)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func([]internal.SongInfo) error); ok {
+		r1 = rf(songInfos)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetSongsFromSongInfos provides a mock function with given fields: songInfos
 func (_m *LyricsService) GetSongsFromSongInfos(songInfos []internal.SongInfo) ([]internal.Song, error) {
 	ret := _m.Called(songInfos)

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/buaazp/fasthttprouter"
 	"github.com/marosiak/WordFinder/config"
 	"github.com/marosiak/WordFinder/internal"
 	log "github.com/sirupsen/logrus"
@@ -15,6 +16,8 @@ type GeniusAPI interface {
 	GetSongsWithWordsByArtist(ctx *fasthttp.RequestCtx)
 }
 
+var _ API = &InternalGeniusAPI{}
+
 type InternalGeniusAPI struct {
 	lyricsService internal.LyricsService
 	cfg           *config.Config
@@ -23,6 +26,12 @@ type InternalGeniusAPI struct {
 
 func NewGeniusAPI(cfg *config.Config, lyricsService internal.LyricsService, logger *log.Entry) *InternalGeniusAPI {
 	return &InternalGeniusAPI{cfg: cfg, lyricsService: lyricsService, logger: logger}
+}
+
+func (s *InternalGeniusAPI) Register(r *fasthttprouter.Router) error {
+	r.GET("/artists/:artist_name/songs/", s.GetSongsByArtist)
+	r.GET("/artists/:artist_name/songs/words", s.GetSongsWithWordsByArtist)
+	return nil
 }
 
 type apiSong struct {
